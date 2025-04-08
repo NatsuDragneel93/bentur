@@ -1,0 +1,36 @@
+.header {
+    background-color: #111;
+    color: white;
+    padding: 10px 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+  
+    .header-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+  
+    .header-title {
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+  
+    .header-nav {
+      display: flex;
+      gap: 15px;
+    }
+  
+    .header-link {
+      color: white;
+      text-decoration: none;
+      font-size: 1rem;
+      transition: color 0.2s;
+  
+      &:hover {
+        color: #007bff;
+      }
+    }
+}

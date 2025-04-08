@@ -1,0 +1,209 @@
+.useful-contacts-page-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100vh;
+  background-color: black;
+  padding: 20px;
+
+  h1 {
+    font-size: 2.5rem;
+    color: white;
+  }
+
+  p {
+    font-size: 1.2rem;
+    color: #666;
+  }
+}
+
+/* Pulsante per aggiungere un contatto */
+.add-contact-button {
+  padding: 10px 20px;
+  background-color: #111111;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: #0056b3;
+  }
+}
+
+/* Lista dei contatti */
+.contacts-list {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  width: 100%;
+  padding: 0 20px;
+}
+
+.contact-card {
+  padding: 15px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #222222;
+  color: white !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+  h3 {
+    margin: 0 0 10px;
+  }
+
+  .card-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+
+    .edit-button,
+    .delete-button {
+      padding: 5px 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      color: white;
+      transition: background-color 0.2s;
+    }
+
+    .edit-button {
+      background-color: #111111;
+
+      &:hover {
+        background-color: black;
+      }
+    }
+
+    .delete-button {
+      background-color: #dc3545;
+
+      &:hover {
+        background-color: #a71d2a;
+      }
+    }
+  }
+}
+
+/* Modale */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  .modal-content {
+    background-color: #111111;
+    padding: 20px;
+    border-radius: 8px;
+    width: 400px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+
+    h2 {
+      margin-top: 0;
+      color: white;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+
+      label {
+        display: flex;
+        flex-direction: column;
+        font-weight: bold;
+
+        input,
+        textarea {
+          margin-top: 5px;
+          padding: 8px;
+          border: 1px solid #ccc;
+          border-radius: 4px;
+          font-family: inherit;
+        }
+      }
+
+      /* Azioni per la modale di aggiunta/modifica */
+      .add-edit-actions {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 20px;
+
+        /* Pulsante Salva */
+        .save-button {
+          padding: 10px 20px;
+          border: none;
+          border-radius: 5px;
+          cursor: pointer;
+          background-color: #004d25;
+          color: white;
+          transition: background-color 0.2s;
+
+          &:hover {
+            background-color: #003d1e;
+          }
+        }
+
+        /* Pulsante Annulla */
+        .cancel-button {
+          padding: 10px 20px;
+          border: none;
+          border-radius: 5px;
+          cursor: pointer;
+          background-color: #555555;
+          color: white;
+          transition: background-color 0.2s;
+
+          &:hover {
+            background-color: #444444;
+          }
+        }
+      }
+    }
+
+    /* Azioni per la modale di conferma eliminazione */
+    .delete-actions {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 20px;
+
+      /* Pulsante Sì */
+      .confirm-button {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        background-color: #dc3545; /* Rosso come il tasto elimina */
+        color: white;
+        transition: background-color 0.2s;
+
+        &:hover {
+          background-color: #a71d2a; /* Rosso più scuro al passaggio del mouse */
+        }
+      }
+
+      /* Pulsante Annulla */
+      .cancel-button {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        background-color: #222222; /* Grigio scuro */
+        color: white;
+        transition: background-color 0.2s;
+
+        &:hover {
+          background-color: #111111; /* Grigio più scuro al passaggio del mouse */
+        }
+      }
+    }
+  }
+}
