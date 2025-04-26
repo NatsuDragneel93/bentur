@@ -20,21 +20,24 @@ const HomePage: React.FC = () => {
   };
 
   return (
-    <div className="card-container">
-      {cardItems.map((item, index) => (
-        <Card
-          key={index}
-          className="custom-card"
-          onClick={() => handleCardClick(`/${item.toLowerCase().replace(/\s+/g, '-')}`)}
-        >
-          <CardContent className="custom-card-content">
-            <Typography variant="h5" className="custom-card-title">
-              {item}
-            </Typography>
-          </CardContent>
-        </Card>
-      ))}
+    <div className="home-page-container">
+      <div className="card-container">
+        {cardItems.map((item, index) => (
+          <Card
+            key={index}
+            className="custom-card"
+            onClick={() => handleCardClick(`/${item.toLowerCase().replace(/\s+/g, '-')}`)}
+          >
+            <CardContent className="custom-card-content">
+              <Typography variant="h5" className="custom-card-title">
+                {item}
+              </Typography>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
+
   );
 };
 
