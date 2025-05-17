@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import './UsefulContacts.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFilter, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faEdit, faFilter, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
 
 interface Contact {
   name: string;
@@ -331,7 +331,7 @@ const UsefulContacts: React.FC = () => {
             <div className="card-row"><strong>Note:</strong> {contact.notes}</div>
             <div className="card-actions">
               <button className="edit-button" onClick={() => handleEditContact(index)}>
-                Modifica
+                <FontAwesomeIcon icon={faEdit} /> Modifica
               </button>
               <button className="delete-button" onClick={() => {
                 setContactToDelete(index);
