@@ -187,7 +187,6 @@ const ToDo: React.FC = () => {
                   onClick={() => handleAccordionClick(category.id)}
                   style={{ flex: 1, textAlign: 'left' }}
                 >
-                  {/* {category.title} */}
                   <span className="category-title">{category.title}</span>
                   <div className='category-actions'>
                     <button

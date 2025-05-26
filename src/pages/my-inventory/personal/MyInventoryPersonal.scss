@@ -1,0 +1,81 @@
+.my-inventory-personal-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: black;
+  padding: 20px 10px;
+
+  h1 {
+    font-size: 2.5rem;
+    color: white;
+  }
+
+  p {
+    font-size: 1.2rem;
+    color: #666;
+  }
+}
+
+.title {
+    text-align: center;
+}
+
+.accordion-list {
+  margin-top: 32px;
+}
+
+.accordion-item {
+  margin-bottom: 16px;
+}
+
+.accordion-title {
+  width: 100%;
+  text-align: left;
+  background: #222;
+  color: #fff;
+  border: none;
+  padding: 16px;
+  font-size: 1.1rem;
+  border-radius: unset;
+  border-top-left-radius: 6px !important;
+  border-top-right-radius: 6px !important;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.accordion-content {
+  background: #333;
+  color: #fff;
+  padding: 16px;
+  border-radius: 0 0 6px 6px;
+}
+
+/* Pulsante per aggiungere una category */
+.add-category-floating-button {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 60px;
+  height: 60px;
+  background-color: #222222;
+  color: white;
+  border: 1px solid white;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+
+  &:hover {
+    background-color: #004d25;
+    transform: scale(1.1);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
