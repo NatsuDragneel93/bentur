@@ -17,7 +17,7 @@
 }
 
 .title {
-    text-align: center;
+  text-align: center;
 }
 
 .accordion-list {
@@ -69,6 +69,45 @@
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
   cursor: pointer;
   transition: background-color 0.3s, transform 0.2s;
+
+  &:hover {
+    background-color: #004d25;
+    transform: scale(1.1);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+.li-personal-inventory {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.li-personal-inventory:last-child {
+  margin-bottom: 0;
+}
+
+.add-data-floating-button {
+  width: 40px;
+  height: 40px;
+  background-color: #222222;
+  color: white;
+  border: 1px solid white !important;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
 
   &:hover {
     background-color: #004d25;
