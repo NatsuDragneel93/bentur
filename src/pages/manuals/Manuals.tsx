@@ -1,67 +1,150 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './Manuals.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faTrash, faEdit, faExternalLinkAlt } from '@fortawesome/free-solid-svg-icons';
-
-interface Manual {
-  id: number;
-  title: string;
-  link: string;
-}
+import { useFirebase } from '../../context/firebase.context';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import manualsService, { Manual } from '../../services/manuals.service';
 
 const Manuals: React.FC = () => {
-  const [manuals, setManuals] = useState<Manual[]>([
-    { id: 1, title: 'Google', link: 'https://www.google.com' },
-    { id: 2, title: 'Tesla', link: 'https://www.tesla.com' },
-    { id: 3, title: 'Microsoft', link: 'https://www.microsoft.com' },
-  ]);
+  const [manuals, setManuals] = useState<Manual[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const firebase = useFirebase();
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [manualToDelete, setManualToDelete] = useState<number | null>(null);
-  const [newManual, setNewManual] = useState<Manual>({ id: 0, title: '', link: '' });
+  const [newManual, setNewManual] = useState<Omit<Manual, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>({
+    title: '', 
+    link: ''
+  });
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(firebase.auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        loadUserManuals(currentUser.uid);
+      } else {
+        setManuals([]);
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [firebase.auth]);
+
+  const loadUserManuals = async (userId: string) => {
+    try {
+      setLoading(true);
+      const userManuals = await manualsService.getUserManuals(userId);
+      setManuals(userManuals);
+    } catch (error) {
+      console.error('Errore nel caricamento dei manuali:', error);
+      alert('Errore nel caricamento dei manuali');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setNewManual({ ...newManual, [name]: value });
   };
 
-  const handleAddOrEditManual = () => {
-    const updatedLink = newManual.link.startsWith('http://') || newManual.link.startsWith('https://')
-      ? newManual.link
-      : `https://${newManual.link}`;
-
-    if (editingIndex !== null) {
-      const updatedManuals = [...manuals];
-      updatedManuals[editingIndex] = { ...newManual, link: updatedLink };
-      setManuals(updatedManuals);
-    } else {
-      setManuals([...manuals, { ...newManual, id: Date.now(), link: updatedLink }]);
+  const handleAddOrEditManual = async () => {
+    if (!user) {
+      alert('Devi essere autenticato per gestire i manuali');
+      return;
     }
 
-    setNewManual({ id: 0, title: '', link: '' });
-    setEditingIndex(null);
-    setIsModalOpen(false);
+    try {
+      if (editingIndex !== null) {
+        // Modifica manuale esistente
+        const manualToUpdate = manuals[editingIndex];
+        if (manualToUpdate.id) {
+          await manualsService.updateManual(manualToUpdate.id, newManual);
+          await loadUserManuals(user.uid);
+        }
+      } else {
+        // Aggiungi nuovo manuale
+        await manualsService.addManual(user.uid, newManual);
+        await loadUserManuals(user.uid);
+      }
+      
+      setNewManual({ title: '', link: '' });
+      setEditingIndex(null);
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Errore nel salvare il manuale:', error);
+      alert('Errore nel salvare il manuale');
+    }
   };
 
-  const handleDeleteManual = () => {
-    if (manualToDelete !== null) {
-      setManuals(manuals.filter((_, index) => index !== manualToDelete));
+  const handleDeleteManual = async () => {
+    if (!user || manualToDelete === null) return;
+
+    try {
+      const manualToRemove = manuals[manualToDelete];
+      if (manualToRemove.id) {
+        await manualsService.deleteManual(manualToRemove.id);
+        await loadUserManuals(user.uid);
+      }
       setManualToDelete(null);
       setIsDeleteModalOpen(false);
+    } catch (error) {
+      console.error('Errore nell\'eliminazione del manuale:', error);
+      alert('Errore nell\'eliminazione del manuale');
     }
   };
 
   const handleEditManual = (index: number) => {
-    setNewManual(manuals[index]);
+    const manual = manuals[index];
+    setNewManual({
+      title: manual.title,
+      link: manual.link
+    });
     setEditingIndex(index);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingIndex(null);
+    // Reset dei campi quando si chiude la modale
+    setNewManual({ title: '', link: '' });
+  };
+
+  const openAddManualModal = () => {
+    // Reset dei campi prima di aprire la modale per un nuovo manuale
+    setNewManual({ title: '', link: '' });
+    setEditingIndex(null);
     setIsModalOpen(true);
   };
 
   const filteredManuals = manuals.filter((manual) =>
     manual.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  if (loading) {
+    return (
+      <div className="manuals-page-container">
+        <div className="manuals-container">
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            height: '50vh',
+            fontSize: '18px',
+            color: 'white'
+          }}>
+            Caricamento manuali...
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="manuals-page-container">
@@ -109,7 +192,7 @@ const Manuals: React.FC = () => {
         </div>
         <button
           className="add-manual-floating-button"
-          onClick={() => setIsModalOpen(true)}
+          onClick={openAddManualModal}
         >
           <FontAwesomeIcon icon={faPlus} />
         </button>
@@ -142,7 +225,7 @@ const Manuals: React.FC = () => {
                 <button type="button" className="save-button" onClick={handleAddOrEditManual}>
                   {editingIndex !== null ? 'Salva Modifiche' : 'Aggiungi'}
                 </button>
-                <button type="button" className="cancel-button" onClick={() => setIsModalOpen(false)}>
+                <button type="button" className="cancel-button" onClick={closeModal}>
                   Annulla
                 </button>
               </div>
