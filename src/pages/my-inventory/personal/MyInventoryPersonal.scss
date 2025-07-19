@@ -28,17 +28,23 @@
   margin-bottom: 16px;
 }
 
-.accordion-title {
-  width: 100%;
-  text-align: left;
+.category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   background: #222;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.accordion-title {
+  flex: 1;
+  text-align: left;
+  background: transparent;
   color: #fff;
   border: none;
   padding: 16px;
   font-size: 1.1rem;
-  border-radius: unset;
-  border-top-left-radius: 6px !important;
-  border-top-right-radius: 6px !important;
   cursor: pointer;
   display: flex;
   align-items: center;
