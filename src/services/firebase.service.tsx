@@ -14,6 +14,12 @@ class FirebaseService {
             const app = initializeApp(firebaseConfig);
             this.auth = getAuth(app);
             this.provider = new GoogleAuthProvider();
+            
+            // Configurazioni per risolvere problemi CORS
+            this.provider.setCustomParameters({
+                'prompt': 'select_account'
+            });
+            
             this.database = getFirestore(app);
             FirebaseService.instance = this;
         }

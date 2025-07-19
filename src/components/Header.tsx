@@ -10,6 +10,7 @@ const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [imageLoadError, setImageLoadError] = useState(false);
   const firebase = useFirebase();
   const navigate = useNavigate();
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -17,6 +18,19 @@ const Header: React.FC = () => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(firebase.auth, (currentUser) => {
       setUser(currentUser);
+      setImageLoadError(false); // Reset image error when user changes
+      
+      // Debug log
+      if (currentUser) {
+        console.log('User photo URL originale:', currentUser.photoURL);
+        console.log('User display name:', currentUser.displayName);
+        
+        // Modifica l'URL per forzare una dimensione più piccola
+        if (currentUser.photoURL) {
+          const modifiedUrl = currentUser.photoURL.replace(/=s\d+-c$/, '=s40-c');
+          console.log('User photo URL modificato:', modifiedUrl);
+        }
+      }
     });
 
     return () => unsubscribe();
@@ -32,6 +46,18 @@ const Header: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const getProcessedImageUrl = (photoURL: string | null): string | null => {
+    if (!photoURL) return null;
+    
+    // Per le immagini di Google, forza una dimensione più piccola e compatibile
+    if (photoURL.includes('googleusercontent.com')) {
+      // Rimuoviamo il cache busting che causa errore 400
+      return photoURL.replace(/=s\d+-c$/, '=s40-c');
+    }
+    
+    return photoURL;
+  };
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -77,22 +103,23 @@ const Header: React.FC = () => {
         {user && (
           <div className="profile-menu-container" ref={profileMenuRef}>
             <button className="profile-button" onClick={toggleProfileMenu}>
-              {user.photoURL ? (
+              {user.photoURL && !imageLoadError ? (
                 <img 
-                  src={user.photoURL} 
+                  src={getProcessedImageUrl(user.photoURL) || ''}
                   alt="Profile" 
                   className="profile-image"
                   onError={(e) => {
-                    // Fallback se l'immagine non carica
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                    target.parentElement!.innerHTML = '<div class="profile-avatar-fallback">' + 
-                      (user.displayName?.charAt(0) || user.email?.charAt(0) || 'U') + '</div>';
+                    console.log('Errore caricamento immagine:', e);
+                    console.log('URL che ha causato errore:', getProcessedImageUrl(user.photoURL));
+                    setImageLoadError(true);
+                  }}
+                  onLoad={() => {
+                    console.log('Immagine caricata con successo');
                   }}
                 />
               ) : (
                 <div className="profile-avatar-fallback">
-                  {user.displayName?.charAt(0) || user.email?.charAt(0) || 'U'}
+                  {user.displayName?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'U'}
                 </div>
               )}
             </button>

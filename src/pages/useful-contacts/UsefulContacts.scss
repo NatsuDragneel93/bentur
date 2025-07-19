@@ -151,7 +151,8 @@
         font-weight: bold;
 
         input,
-        textarea {
+        textarea,
+        select {
           margin-top: 5px;
           padding: 8px;
           border: 1px solid #ccc;
@@ -321,11 +322,18 @@
         font-family: inherit;
         background-color: #333333;
         color: white;
+        min-height: 36px;
       }
     }
 
     .filter-select {
-      height: 100%;
+      padding: 8px;
+      min-height: 36px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-family: inherit;
+      background-color: #333333;
+      color: white;
     }
   }
 }

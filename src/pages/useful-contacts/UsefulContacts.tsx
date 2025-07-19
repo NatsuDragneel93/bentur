@@ -2,71 +2,18 @@ import React, { useEffect, useState } from 'react';
 import './UsefulContacts.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faFilter, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
-
-interface Contact {
-  name: string;
-  category: string;
-  phone: string;
-  email: string;
-  notes: string;
-  city: string
-}
+import { useFirebase } from '../../context/firebase.context';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import usefulContactsService, { Contact } from '../../services/usefulContacts.service';
 
 const UsefulContacts: React.FC = () => {
-  // const [contacts, setContacts] = useState<Contact[]>([]);
-  const [contacts, setContacts] = useState<Contact[]>([
-    {
-      name: 'Thomann',
-      category: 'Negozio strumenti',
-      phone: '010111111',
-      email: 'thoman@mail.com',
-      notes: 'Strumenti musicali e accessori',
-      city: 'Genova',
-    },
-    {
-      name: 'Music Company',
-      category: 'Negozio strumenti',
-      phone: '020202022',
-      email: 'muscomp@mail.com',
-      notes: 'Specializzato in batterie',
-      city: 'Milano',
-    },
-    {
-      name: 'Tizio & Caio Srl',
-      category: 'Service',
-      phone: '010101020',
-      email: 'tizioecaio@mail.com',
-      notes: 'Service',
-      city: 'Genova',
-    },
-    {
-      name: 'Fabrizio',
-      category: 'Tecnico/riparatore',
-      phone: '3403403434',
-      email: 'fabrizio@mail.com',
-      notes: 'Riparatore chitarre e batterie',
-      city: 'Milano',
-    },
-    {
-      name: 'Scurreria',
-      category: 'Utility',
-      phone: '010505050',
-      email: 'scurreria@mail.com',
-      notes: 'Pub',
-      city: 'Genova',
-    },
-    {
-      name: 'Tamashi Ramen',
-      category: 'Utility',
-      phone: '010999999',
-      email: 'tamashi@mail.com',
-      notes: 'Ristorante',
-      city: 'Genova',
-    },
-  ]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const firebase = useFirebase();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [newContact, setNewContact] = useState<Contact>({
+  const [newContact, setNewContact] = useState<Omit<Contact, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>({
     name: '',
     category: '',
     phone: '',
@@ -85,6 +32,33 @@ const UsefulContacts: React.FC = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   useEffect(() => {
+    const unsubscribe = onAuthStateChanged(firebase.auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        loadUserContacts(currentUser.uid);
+      } else {
+        setContacts([]);
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [firebase.auth]);
+
+  const loadUserContacts = async (userId: string) => {
+    try {
+      setLoading(true);
+      const userContacts = await usefulContactsService.getUserContacts(userId);
+      setContacts(userContacts);
+    } catch (error) {
+      console.error('Errore nel caricamento dei contatti:', error);
+      alert('Errore nel caricamento dei contatti');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
     };
@@ -95,58 +69,112 @@ const UsefulContacts: React.FC = () => {
     };
   }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setNewContact({ ...newContact, [name]: value });
   };
 
-  const handleAddOrEditContact = () => {
-    if (editingIndex !== null) {
-      const updatedContacts = [...contacts];
-      updatedContacts[editingIndex] = newContact;
-      setContacts(updatedContacts);
-    } else {
-      setContacts([...contacts, newContact]);
+  const handleAddOrEditContact = async () => {
+    if (!user) {
+      alert('Devi essere autenticato per aggiungere contatti');
+      return;
     }
-    setNewContact({ name: '', category: '', phone: '', email: '', notes: '', city: '' });
-    setIsModalOpen(false);
-    setEditingIndex(null);
+
+    try {
+      if (editingIndex !== null) {
+        // Modifica contatto esistente
+        const contactToUpdate = contacts[editingIndex];
+        if (contactToUpdate.id) {
+          await usefulContactsService.updateContact(contactToUpdate.id, newContact);
+          await loadUserContacts(user.uid);
+        }
+      } else {
+        // Aggiungi nuovo contatto
+        await usefulContactsService.addContact(user.uid, newContact);
+        await loadUserContacts(user.uid);
+      }
+      
+      setNewContact({ name: '', category: '', phone: '', email: '', notes: '', city: '' });
+      setIsModalOpen(false);
+      setEditingIndex(null);
+    } catch (error) {
+      console.error('Errore nel salvare il contatto:', error);
+      alert('Errore nel salvare il contatto');
+    }
   };
 
   const handleEditContact = (index: number) => {
-    setNewContact(contacts[index]);
+    const contact = contacts[index];
+    setNewContact({
+      name: contact.name,
+      category: contact.category,
+      phone: contact.phone,
+      email: contact.email,
+      notes: contact.notes,
+      city: contact.city
+    });
     setEditingIndex(index);
     setIsModalOpen(true);
   };
 
-  const handleDeleteContact = () => {
-    if (contactToDelete !== null) {
-      setContacts(contacts.filter((_, index) => index !== contactToDelete));
+  const handleDeleteContact = async () => {
+    if (!user || contactToDelete === null) return;
+
+    try {
+      const contactToRemove = contacts[contactToDelete];
+      if (contactToRemove.id) {
+        await usefulContactsService.deleteContact(contactToRemove.id);
+        await loadUserContacts(user.uid);
+      }
       setContactToDelete(null);
       setIsDeleteModalOpen(false);
+    } catch (error) {
+      console.error('Errore nell\'eliminazione del contatto:', error);
+      alert('Errore nell\'eliminazione del contatto');
     }
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingIndex(null);
+    // Reset dei campi quando si chiude la modale
+    setNewContact({ name: '', category: '', phone: '', email: '', notes: '', city: '' });
+  };
+
+  const openAddContactModal = () => {
+    // Reset dei campi prima di aprire la modale per un nuovo contatto
+    setNewContact({ name: '', category: '', phone: '', email: '', notes: '', city: '' });
+    setEditingIndex(null);
+    setIsModalOpen(true);
   };
 
   const filteredContacts = contacts
   .filter((contact) => {
-    return (
-      (filters.category === '' || contact.category === filters.category) &&
-      (filters.city === '' || contact.city === filters.city)
-    );
+    const categoryMatch = filters.category === '' || contact.category === filters.category;
+    const cityMatch = filters.city === '' || 
+      (contact.city.charAt(0).toUpperCase() + contact.city.slice(1).toLowerCase()) === filters.city;
+    
+    return categoryMatch && cityMatch;
   })
   .filter((contact) => {
     return contact.name.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
-  const handleFilter = (category: string) => {
-    setSearchTerm(category);
-    setShowFilters(false);
+  // Funzione per estrarre le città uniche dai contatti
+  const getUniqueCities = (): string[] => {
+    const cities = contacts
+      .map(contact => contact.city.trim()) // Rimuove spazi
+      .filter(city => city !== '') // Rimuove città vuote
+      .map(city => 
+        // Capitalizza la prima lettera e minuscole per il resto
+        city.charAt(0).toUpperCase() + city.slice(1).toLowerCase()
+      );
+    
+    // Rimuove duplicati e ordina alfabeticamente
+    return [...new Set(cities)].sort();
   };
+
+  const uniqueCities = getUniqueCities();
 
   const handleFilterChange = (field: string, value: string) => {
     setFilters((prevFilters) => ({
@@ -154,6 +182,24 @@ const UsefulContacts: React.FC = () => {
       [field]: value,
     }));
   };
+
+  if (loading) {
+    return (
+      <div className="useful-contacts-page-container">
+        <div className="contacts-container">
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            height: '50vh',
+            fontSize: '18px' 
+          }}>
+            Caricamento contatti...
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="useful-contacts-page-container">
@@ -248,8 +294,11 @@ const UsefulContacts: React.FC = () => {
                     <option value="" disabled>
                       Seleziona città
                     </option>
-                    <option value="Genova">Genova</option>
-                    <option value="Milano">Milano</option>
+                    {uniqueCities.map((city) => (
+                      <option key={city} value={city}>
+                        {city}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="filter-group">
@@ -304,8 +353,11 @@ const UsefulContacts: React.FC = () => {
                       <option value="" disabled>
                         Seleziona città
                       </option>
-                      <option value="Genova">Genova</option>
-                      <option value="Milano">Milano</option>
+                      {uniqueCities.map((city) => (
+                        <option key={city} value={city}>
+                          {city}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className="filter-group">
@@ -355,7 +407,13 @@ const UsefulContacts: React.FC = () => {
               </label>
               <label>
                 Categoria:
-                <input type="text" name="category" value={newContact.category} onChange={handleInputChange} />
+                <select name="category" value={newContact.category} onChange={handleInputChange} required>
+                  <option value="">Seleziona una categoria</option>
+                  <option value="Negozio strumenti">Negozio strumenti</option>
+                  <option value="Service">Service</option>
+                  <option value="Utility">Utility</option>
+                  <option value="Tecnico/riparatore">Tecnico/riparatore</option>
+                </select>
               </label>
               <label>
                 Telefono:
@@ -402,7 +460,7 @@ const UsefulContacts: React.FC = () => {
         </div>
       )}
   
-      <button className="add-contact-floating-button" onClick={() => setIsModalOpen(true)}>
+      <button className="add-contact-floating-button" onClick={openAddContactModal}>
         <FontAwesomeIcon icon={faPlus} />
       </button>
       </div>
