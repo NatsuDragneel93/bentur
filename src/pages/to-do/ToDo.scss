@@ -176,7 +176,7 @@
 }
 
 .category-accordion {
-  width: 100%;
+  flex: 1;
   background: #222;
   color: white;
   border: none;
@@ -184,9 +184,16 @@
   font-size: 1.1rem;
   border-radius: 4px;
   cursor: pointer;
+  text-align: left;
+}
+
+.category-header {
+  width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: #222;
+  border-radius: 4px;
 }
 
 .category-title {
@@ -206,5 +213,6 @@
 
 .category-actions {
   display: flex;
-  gap: 20px;
+  gap: 8px;
+  padding: 8px;
 }

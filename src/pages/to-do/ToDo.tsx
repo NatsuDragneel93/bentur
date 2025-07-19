@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './ToDo.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
@@ -8,62 +8,55 @@ import {
   Draggable,
   DropResult,
 } from '@hello-pangea/dnd';
-
-interface Todo {
-  id: number;
-  text: string;
-  completed: boolean;
-}
-
-interface Category {
-  id: number;
-  title: string;
-  todos: Todo[];
-}
-
-const personalTodos: Todo[] = [
-  { id: 1, text: 'Fare la spesa', completed: false },
-  { id: 2, text: 'Andare in vacanza', completed: false },
-  { id: 3, text: 'Risparmiare soldi', completed: false },
-  { id: 4, text: 'Vendere la macchina', completed: false },
-  { id: 5, text: 'Andare a visitare la nonna', completed: false },
-];
-
-const tananaiTodos: Todo[] = [
-  { id: 1, text: 'Portare chitarra', completed: false },
-  { id: 2, text: 'Comprare nuovo microfono', completed: false },
-  { id: 3, text: 'Riparare auricolare', completed: false },
-];
-
-const ligabueTodos: Todo[] = [
-  { id: 1, text: 'Mettere i piatti della batteria nella valigia', completed: false },
-  { id: 2, text: 'Verificare che il mixer funzioni', completed: false },
-  { id: 3, text: 'Check luci che non funzionavano', completed: false },
-];
-
-const initialCategories: Category[] = [
-  { id: 1, title: 'Tananai', todos: tananaiTodos },
-  { id: 2, title: 'Ligabue', todos: ligabueTodos },
-  { id: 3, title: 'Personale', todos: personalTodos },
-];
+import { useFirebase } from '../../context/firebase.context';
+import { User, onAuthStateChanged } from 'firebase/auth';
+import todoService, { Todo, Category } from '../../services/todo.service';
 
 const ToDo: React.FC = () => {
-  const [categories, setCategories] = useState<Category[]>(initialCategories);
-  const [expandedCategoryId, setExpandedCategoryId] = useState<number | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const firebase = useFirebase();
+  const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newTodoText, setNewTodoText] = useState('');
   const [newTodoCompleted, setNewTodoCompleted] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [editingTodoId, setEditingTodoId] = useState<number | null>(null);
+  const [editingTodoId, setEditingTodoId] = useState<string | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [todoToDelete, setTodoToDelete] = useState<{ categoryId: number, todoId: number } | null>(null);
+  const [todoToDelete, setTodoToDelete] = useState<{ categoryId: string, todoId: string } | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [newCategoryTitle, setNewCategoryTitle] = useState('');
   const [isDeleteCategoryModalOpen, setIsDeleteCategoryModalOpen] = useState(false);
-  const [categoryToDelete, setCategoryToDelete] = useState<number | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
   const [isEditCategoryModalOpen, setIsEditCategoryModalOpen] = useState(false);
   const [categoryToEdit, setCategoryToEdit] = useState<Category | null>(null);
   const [editCategoryTitle, setEditCategoryTitle] = useState('');
+
+  useEffect(() => {
+    if (firebase && firebase.auth) {
+      const unsubscribe = onAuthStateChanged(firebase.auth, (user: User | null) => {
+        setUser(user);
+        if (user) {
+          loadCategories(user.uid);
+        } else {
+          setCategories([]);
+        }
+        setLoading(false);
+      });
+
+      return () => unsubscribe();
+    }
+  }, [firebase]);
+
+  const loadCategories = async (userId: string) => {
+    try {
+      const userCategories = await todoService.getUserCategories(userId);
+      setCategories(userCategories);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  };
 
   // Filtra le categorie in base al searchTerm
   const filteredCategories = categories.filter(category =>
@@ -71,60 +64,85 @@ const ToDo: React.FC = () => {
   );
 
   // Gestione accordion
-  const handleAccordionClick = (categoryId: number) => {
+  const handleAccordionClick = (categoryId: string) => {
     setExpandedCategoryId(prev => (prev === categoryId ? null : categoryId));
   };
 
   // Gestione toggle completato
-  const handleToggle = (categoryId: number, todoId: number) => {
-    setCategories(categories =>
-      categories.map(category =>
-        category.id === categoryId
-          ? {
-            ...category,
-            todos: category.todos.map(todo =>
-              todo.id === todoId
-                ? { ...todo, completed: !todo.completed }
-                : todo
-            ),
-          }
-          : category
-      )
-    );
+  const handleToggle = async (categoryId: string, todoId: string) => {
+    if (!user || !categoryId) return;
+    
+    try {
+      const category = categories.find(c => c.id === categoryId);
+      if (!category) return;
+      
+      const todo = category.todos.find(t => t.id === todoId);
+      if (!todo) return;
+      
+      await todoService.updateTodo(categoryId, todoId, {
+        completed: !todo.completed
+      });
+      
+      // Aggiorna lo stato locale
+      setCategories(prevCategories =>
+        prevCategories.map(cat =>
+          cat.id === categoryId
+            ? {
+                ...cat,
+                todos: cat.todos.map(t =>
+                  t.id === todoId ? { ...t, completed: !t.completed } : t
+                )
+              }
+            : cat
+        )
+      );
+    } catch (error) {
+      console.error('Error updating todo:', error);
+    }
   };
 
   // Gestione add/edit todo
-  const handleAddOrEditTodo = () => {
-    if (newTodoText.trim() === '' || expandedCategoryId === null) return;
-    setCategories(categories =>
-      categories.map(category => {
-        if (category.id !== expandedCategoryId) return category;
-        if (editingTodoId !== null) {
-          // Edit
-          return {
-            ...category,
-            todos: category.todos.map(todo =>
-              todo.id === editingTodoId
-                ? { ...todo, text: newTodoText.trim(), completed: newTodoCompleted }
-                : todo
-            ),
-          };
-        } else {
-          // Add
-          return {
-            ...category,
-            todos: [
-              ...category.todos,
-              { id: Date.now(), text: newTodoText.trim(), completed: newTodoCompleted },
-            ],
-          };
-        }
-      })
-    );
-    setNewTodoText('');
-    setNewTodoCompleted(false);
-    setIsModalOpen(false);
-    setEditingTodoId(null);
+  const handleAddOrEditTodo = async () => {
+    if (newTodoText.trim() === '' || expandedCategoryId === null || !user) return;
+    
+    try {
+      if (editingTodoId !== null) {
+        // Edit
+        await todoService.updateTodo(expandedCategoryId, editingTodoId, {
+          text: newTodoText.trim(),
+          completed: newTodoCompleted
+        });
+        
+        // Aggiorna lo stato locale
+        setCategories(prevCategories =>
+          prevCategories.map(category =>
+            category.id === expandedCategoryId
+              ? {
+                  ...category,
+                  todos: category.todos.map(todo =>
+                    todo.id === editingTodoId
+                      ? { ...todo, text: newTodoText.trim(), completed: newTodoCompleted }
+                      : todo
+                  )
+                }
+              : category
+          )
+        );
+      } else {
+        // Add
+        await todoService.addTodo(expandedCategoryId, newTodoText.trim(), newTodoCompleted);
+        
+        // Ricarica le categorie dopo l'aggiunta
+        await loadCategories(user.uid);
+      }
+      
+      setNewTodoText('');
+      setNewTodoCompleted(false);
+      setIsModalOpen(false);
+      setEditingTodoId(null);
+    } catch (error) {
+      console.error('Error adding/editing todo:', error);
+    }
   };
 
   // Gestione edit click
@@ -136,35 +154,87 @@ const ToDo: React.FC = () => {
   };
 
   // Gestione delete
-  const handleDeleteTodo = () => {
-    if (!todoToDelete) return;
-    setCategories(categories =>
-      categories.map(category =>
-        category.id === todoToDelete.categoryId
-          ? {
-            ...category,
-            todos: category.todos.filter(todo => todo.id !== todoToDelete.todoId),
-          }
-          : category
-      )
-    );
-    setIsDeleteModalOpen(false);
-    setTodoToDelete(null);
+  const handleDeleteTodo = async () => {
+    if (!todoToDelete || !user) return;
+    
+    try {
+      await todoService.deleteTodo(todoToDelete.categoryId, todoToDelete.todoId);
+      
+      // Aggiorna lo stato locale
+      setCategories(prevCategories =>
+        prevCategories.map(category =>
+          category.id === todoToDelete.categoryId
+            ? {
+                ...category,
+                todos: category.todos.filter(todo => todo.id !== todoToDelete.todoId)
+              }
+            : category
+        )
+      );
+      
+      setIsDeleteModalOpen(false);
+      setTodoToDelete(null);
+    } catch (error) {
+      console.error('Error deleting todo:', error);
+    }
   };
 
   // Drag & drop solo per la categoria espansa
-  const handleDragEnd = (result: DropResult) => {
-    if (!result.destination || expandedCategoryId === null) return;
-    setCategories(categories =>
-      categories.map(category => {
-        if (category.id !== expandedCategoryId) return category;
-        const todos = Array.from(category.todos);
-        const [removed] = todos.splice(result.source.index, 1);
-        todos.splice(result.destination!.index, 0, removed);
-        return { ...category, todos };
-      })
-    );
+  const handleDragEnd = async (result: DropResult) => {
+    if (!result.destination || expandedCategoryId === null || !user) return;
+    
+    const category = categories.find(c => c.id === expandedCategoryId);
+    if (!category) return;
+    
+    const todos = Array.from(category.todos);
+    const [removed] = todos.splice(result.source.index, 1);
+    todos.splice(result.destination!.index, 0, removed);
+    
+    // Aggiorna gli ordini
+    const reorderedTodos = todos.map((todo, index) => ({
+      ...todo,
+      order: index
+    }));
+    
+    try {
+      await todoService.updateTodosOrder(expandedCategoryId, reorderedTodos);
+      
+      // Aggiorna lo stato locale
+      setCategories(prevCategories =>
+        prevCategories.map(cat =>
+          cat.id === expandedCategoryId
+            ? { ...cat, todos: reorderedTodos }
+            : cat
+        )
+      );
+    } catch (error) {
+      console.error('Error updating todos order:', error);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="to-do-page-container">
+        <div className="to-do-container">
+          <div style={{ textAlign: 'center', padding: '2rem' }}>
+            Caricamento...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="to-do-page-container">
+        <div className="to-do-container">
+          <div style={{ textAlign: 'center', padding: '2rem' }}>
+            Effettua il login per vedere i tuoi To Do
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="to-do-page-container">
@@ -179,43 +249,45 @@ const ToDo: React.FC = () => {
           />
         </div>
         <ul className="category-list">
-          {filteredCategories.map(category => (
+          {filteredCategories.map(category => {
+            if (!category.id) return null; // Skip categories without ID
+            
+            return (
             <li key={category.id} className="category-item">
-              <div>
+              <div className="category-header">
                 <button
                   className="category-accordion"
-                  onClick={() => handleAccordionClick(category.id)}
-                  style={{ flex: 1, textAlign: 'left' }}
+                  onClick={() => handleAccordionClick(category.id!)}
                 >
                   <span className="category-title">{category.title}</span>
-                  <div className='category-actions'>
-                    <button
-                      className="todo-edit-button"
-                      type="button"
-                      onClick={e => {
-                        e.stopPropagation();
-                        setCategoryToEdit(category);
-                        setEditCategoryTitle(category.title);
-                        setIsEditCategoryModalOpen(true);
-                      }}
-                      title="Modifica categoria"
-                    >
-                      <FontAwesomeIcon icon={faEdit} />
-                    </button>
-                    <button
-                      className="todo-delete-button"
-                      type="button"
-                      onClick={e => {
-                        e.stopPropagation();
-                        setCategoryToDelete(category.id);
-                        setIsDeleteCategoryModalOpen(true);
-                      }}
-                      title="Elimina categoria"
-                    >
-                      <FontAwesomeIcon icon={faTrash} />
-                    </button>
-                  </div>
                 </button>
+                <div className='category-actions'>
+                  <button
+                    className="todo-edit-button"
+                    type="button"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setCategoryToEdit(category);
+                      setEditCategoryTitle(category.title);
+                      setIsEditCategoryModalOpen(true);
+                    }}
+                    title="Modifica categoria"
+                  >
+                    <FontAwesomeIcon icon={faEdit} />
+                  </button>
+                  <button
+                    className="todo-delete-button"
+                    type="button"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setCategoryToDelete(category.id!);
+                      setIsDeleteCategoryModalOpen(true);
+                    }}
+                    title="Elimina categoria"
+                  >
+                    <FontAwesomeIcon icon={faTrash} />
+                  </button>
+                </div>
               </div>
 
               {expandedCategoryId === category.id && (
@@ -249,7 +321,7 @@ const ToDo: React.FC = () => {
                                     <input
                                       type="checkbox"
                                       checked={todo.completed}
-                                      onChange={() => handleToggle(category.id, todo.id)}
+                                      onChange={() => handleToggle(category.id!, todo.id)}
                                       style={{ marginRight: '10px' }}
                                     />
                                     <span className={todo.completed ? 'completed' : ''}>
@@ -269,7 +341,7 @@ const ToDo: React.FC = () => {
                                       className="todo-delete-button"
                                       type="button"
                                       onClick={() => {
-                                        setTodoToDelete({ categoryId: category.id, todoId: todo.id });
+                                        setTodoToDelete({ categoryId: category.id!, todoId: todo.id });
                                         setIsDeleteModalOpen(true);
                                       }}
                                     >
@@ -300,7 +372,8 @@ const ToDo: React.FC = () => {
                 </div>
               )}
             </li>
-          ))}
+            );
+          })}
         </ul>
         {/* Floating button SEMPRE visibile per aggiungere categoria */}
         <button
@@ -322,19 +395,18 @@ const ToDo: React.FC = () => {
           <div className="modal-content">
             <h2>Aggiungi Categoria</h2>
             <form
-              onSubmit={e => {
+              onSubmit={async (e) => {
                 e.preventDefault();
-                if (newCategoryTitle.trim() === '') return;
-                setCategories([
-                  ...categories,
-                  {
-                    id: Date.now(),
-                    title: newCategoryTitle.trim(),
-                    todos: [],
-                  },
-                ]);
-                setIsCategoryModalOpen(false);
-                setNewCategoryTitle('');
+                if (newCategoryTitle.trim() === '' || !user) return;
+                
+                try {
+                  await todoService.addCategory(user.uid, newCategoryTitle.trim());
+                  await loadCategories(user.uid);
+                  setIsCategoryModalOpen(false);
+                  setNewCategoryTitle('');
+                } catch (error) {
+                  console.error('Error adding category:', error);
+                }
               }}
             >
               <label>
@@ -449,11 +521,18 @@ const ToDo: React.FC = () => {
               <button
                 type="button"
                 className="confirm-button"
-                onClick={() => {
-                  setCategories(categories => categories.filter(cat => cat.id !== categoryToDelete));
-                  setIsDeleteCategoryModalOpen(false);
-                  setCategoryToDelete(null);
-                  setExpandedCategoryId(null);
+                onClick={async () => {
+                  if (!categoryToDelete || !user) return;
+                  
+                  try {
+                    await todoService.deleteCategory(categoryToDelete);
+                    await loadCategories(user.uid);
+                    setIsDeleteCategoryModalOpen(false);
+                    setCategoryToDelete(null);
+                    setExpandedCategoryId(null);
+                  } catch (error) {
+                    console.error('Error deleting category:', error);
+                  }
                 }}
               >
                 Sì
@@ -478,17 +557,18 @@ const ToDo: React.FC = () => {
           <div className="modal-content">
             <h2>Modifica Categoria</h2>
             <form
-              onSubmit={e => {
+              onSubmit={async (e) => {
                 e.preventDefault();
-                setCategories(categories =>
-                  categories.map(cat =>
-                    cat.id === categoryToEdit?.id
-                      ? { ...cat, title: editCategoryTitle }
-                      : cat
-                  )
-                );
-                setIsEditCategoryModalOpen(false);
-                setCategoryToEdit(null);
+                if (!categoryToEdit?.id || !user) return;
+                
+                try {
+                  await todoService.updateCategory(categoryToEdit.id, editCategoryTitle);
+                  await loadCategories(user.uid);
+                  setIsEditCategoryModalOpen(false);
+                  setCategoryToEdit(null);
+                } catch (error) {
+                  console.error('Error updating category:', error);
+                }
               }}
             >
               <label>
