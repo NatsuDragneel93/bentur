@@ -460,7 +460,10 @@ const UsefulContacts: React.FC = () => {
         </div>
       )}
   
-      <button className="add-contact-floating-button" onClick={openAddContactModal}>
+      <button 
+        className={`add-contact-floating-button ${isMobile && isModalOpen ? 'hidden-mobile' : ''}`} 
+        onClick={openAddContactModal}
+      >
         <FontAwesomeIcon icon={faPlus} />
       </button>
       </div>

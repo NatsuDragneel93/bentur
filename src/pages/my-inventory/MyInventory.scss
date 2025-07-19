@@ -21,6 +21,11 @@
   margin-top: 40px;
   align-items: center;
   width: 100%;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 20px;
+  }
 }
 
 .inventory-card {
