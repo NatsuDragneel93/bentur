@@ -39,7 +39,7 @@
       transition: color 0.2s;
 
       &:hover {
-        color: #007bff;
+        color: #004d25;
       }
     }
   }
@@ -76,6 +76,130 @@
 
       .header-link {
         font-size: 1.5rem;
+      }
+    }
+  }
+
+  /* Profile Menu Styles */
+  .profile-menu-container {
+    position: relative;
+    margin-left: 20px;
+
+    .profile-button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      border-radius: 50%;
+      overflow: hidden;
+      width: 40px;
+      height: 40px;
+      transition: transform 0.2s ease;
+      border: 2px solid white;
+
+      &:hover {
+        transform: scale(1.05);
+      }
+
+      .profile-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+        display: block;
+      }
+
+      .profile-avatar-fallback {
+        width: 100%;
+        height: 100%;
+        background: #007bff;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 16px;
+        border-radius: 50%;
+      }
+    }
+
+    .profile-dropdown {
+      position: absolute;
+      top: 50px;
+      right: 0;
+      background: #111;
+      color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      padding: 16px;
+      min-width: 200px;
+      z-index: 1001;
+      border: 1px solid #333;
+
+      .profile-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 12px;
+
+        .profile-name {
+          font-weight: 600;
+          font-size: 14px;
+          color: white;
+        }
+
+        .profile-email {
+          font-size: 12px;
+          color: #ccc;
+        }
+      }
+
+      .profile-divider {
+        border: none;
+        height: 1px;
+        background: #444;
+        margin: 8px 0;
+      }
+
+      .logout-button {
+        width: 100%;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 8px 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #dc3545;
+        font-size: 14px;
+        font-weight: 500;
+        transition: background-color 0.2s ease;
+        border-radius: 4px;
+
+        &:hover {
+          background-color: #333;
+          padding-left: 8px;
+        }
+
+        svg {
+          width: 16px;
+          height: 16px;
+        }
+      }
+    }
+
+    @media (max-width: 768px) {
+      margin-left: 0;
+      margin-right: 10px;
+
+      .profile-button {
+        width: 35px;
+        height: 35px;
+      }
+
+      .profile-dropdown {
+        right: -10px;
+        min-width: 180px;
       }
     }
   }

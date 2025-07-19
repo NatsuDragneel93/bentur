@@ -12,62 +12,38 @@ import UsefulContacts from './pages/useful-contacts/UsefulContacts';
 import Header from './components/Header';
 import MyInventoryPersonal from './pages/my-inventory/personal/MyInventoryPersonal';
 import MyInventoryTour from './pages/my-inventory/tour/MyInventoryTour';
-// import { FirebaseProvider } from './context/firebase.context';
+import { FirebaseProvider } from './context/firebase.context';
+import ProtectedRoute from './components/ProtectedRoute';
 
 const App: React.FC = () => {
   return (
-    // <div className="app-main-container">
-    //   <FirebaseProvider>
-    //     <Router>
-    //       <Routes>
-    //         <Route path="/" element={<Login />} />
-    //         <Route path="/home" element={<Home />} />
-    //       </Routes>
-    //     </Router>
-    //   </FirebaseProvider>
-    // </div >
-
-    // <div className="app-main-container">
-    //   <Router>
-    //     <Routes>
-    //       <Route path="/" element={<Login />} />
-    //       <Route path="/home" element={<Home />} />
-    //       <Route path="/tours" element={<Tours />} />
-    //       <Route path="/to-do" element={<ToDo />} />
-    //       <Route path="/to-buy" element={<ToBuy />} />
-    //       <Route path="/my-inventory" element={<MyInventory />} />
-    //       <Route path="/manuals" element={<Manuals />} />
-    //       <Route path="/useful-contacts" element={<UsefulContacts />} />
-    //     </Routes>
-    //   </Router>
-    // </div >
-
-
     <div className="app-main-container">
-      <Router>
-        <Routes>
-          <Route path="/" element={<Login />} />
-          <Route
-            path="/*"
-            element={
-              <>
-                <Header />
-                <Routes>
-                  <Route path="/home" element={<Home />} />
-                  <Route path="/tours" element={<Tours />} />
-                  <Route path="/to-do" element={<ToDo />} />
-                  <Route path="/to-buy" element={<ToBuy />} />
-                  <Route path="/my-inventory" element={<MyInventory />} />
-                  <Route path="/my-inventory/personal" element={<MyInventoryPersonal />} />
-                  <Route path="/my-inventory/tour" element={<MyInventoryTour />} />
-                  <Route path="/manuals" element={<Manuals />} />
-                  <Route path="/useful-contacts" element={<UsefulContacts />} />
-                </Routes>
-              </>
-            }
-          />
-        </Routes>
-      </Router>
+      <FirebaseProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<Login />} />
+            <Route
+              path="/*"
+              element={
+                <ProtectedRoute>
+                  <Header />
+                  <Routes>
+                    <Route path="/home" element={<Home />} />
+                    <Route path="/tours" element={<Tours />} />
+                    <Route path="/to-do" element={<ToDo />} />
+                    <Route path="/to-buy" element={<ToBuy />} />
+                    <Route path="/my-inventory" element={<MyInventory />} />
+                    <Route path="/my-inventory/personal" element={<MyInventoryPersonal />} />
+                    <Route path="/my-inventory/tour" element={<MyInventoryTour />} />
+                    <Route path="/manuals" element={<Manuals />} />
+                    <Route path="/useful-contacts" element={<UsefulContacts />} />
+                  </Routes>
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </Router>
+      </FirebaseProvider>
     </div>
   );
 };

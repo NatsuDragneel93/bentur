@@ -1,19 +1,32 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { signInWithPopup } from 'firebase/auth';
+import { useFirebase } from '../../context/firebase.context';
 import './Login.scss';
 
 const LoginPage: React.FC = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const firebase = useFirebase();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Logica di autenticazione (da implementare)
-    if (username === 'user' && password === 'password') {
+  const handleGoogleLogin = async () => {
+    try {
+      setIsLoading(true);
+      const result = await signInWithPopup(firebase.auth, firebase.provider);
+      const user = result.user;
+      
+      // Console.log del nome dell'utente
+      console.log('Utente autenticato:', user.displayName);
+      console.log('Email:', user.email);
+      console.log('ID utente:', user.uid);
+      
+      // Naviga alla home page
       navigate('/home');
-    } else {
-      alert('Credenziali non valide');
+    } catch (error) {
+      console.error('Errore durante l\'autenticazione:', error);
+      alert('Errore durante il login. Riprova.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -21,29 +34,15 @@ const LoginPage: React.FC = () => {
     <div className='login-page-container'>
       <h1>Ben Tur</h1>
       <div className='login-form-container'>
-        <form className='login-form' onSubmit={handleSubmit}>
-          <div className='login-form-field'>
-            <label>Username</label>
-            <input
-              className='login-form-field-input'
-              type="text"
-              value={username}
-              placeholder='Username'
-              onChange={(e) => setUsername(e.target.value)}
-            />
-          </div>
-          <div className='login-form-field'>
-            <label>Password</label>
-            <input
-              className='login-form-field-input'
-              type="password"
-              value={password}
-              placeholder='Password'
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-          <button type="submit">Login</button>
-        </form>
+        <div className='login-google-container'>
+          <button 
+            className='google-login-button'
+            onClick={handleGoogleLogin}
+            disabled={isLoading}
+          >
+            {isLoading ? 'Accesso in corso...' : 'Accedi con Google'}
+          </button>
+        </div>
       </div>
     </div>
   );
