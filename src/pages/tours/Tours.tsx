@@ -4,13 +4,17 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useFirebase } from '../../context/firebase.context';
 import { User, onAuthStateChanged } from 'firebase/auth';
+import { useParams, useNavigate } from 'react-router-dom';
 import toursService, { Tour } from '../../services/tours.service';
+import TourDetail from './components/TourDetail';
 
 const Tours: React.FC = () => {
   const [tours, setTours] = useState<Tour[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const firebase = useFirebase();
+  const { tourId } = useParams();
+  const navigate = useNavigate();
 
   // Modal states
   const [isTourModalOpen, setIsTourModalOpen] = useState(false);
@@ -126,6 +130,16 @@ const Tours: React.FC = () => {
     );
   }
 
+  // Se è selezionato un tour, mostra il dettaglio
+  if (tourId) {
+    return (
+      <TourDetail
+        tourId={tourId}
+        onBack={() => navigate('/tours')}
+      />
+    );
+  }
+
   return (
     <div className="tours-page-container">
       <div className="tours-container">
@@ -134,13 +148,20 @@ const Tours: React.FC = () => {
         <ul className="tours-list">
           {tours.map(tour => (
             <li key={tour.id} className="tour-item">
-              <div className="tour-content">
+              <div 
+                className="tour-content"
+                onClick={() => navigate(`/tours/${tour.id}`)}
+                style={{ cursor: 'pointer' }}
+              >
                 <span className="tour-name">{tour.name}</span>
                 <div className="tour-actions">
                   <button
                     className="tour-edit-button"
                     type="button"
-                    onClick={() => handleEditClick(tour)}
+                    onClick={(e) => {
+                      e.stopPropagation(); // Previene il click sul tour-content
+                      handleEditClick(tour);
+                    }}
                     title="Modifica tour"
                   >
                     <FontAwesomeIcon icon={faEdit} />
@@ -148,7 +169,8 @@ const Tours: React.FC = () => {
                   <button
                     className="tour-delete-button"
                     type="button"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation(); // Previene il click sul tour-content
                       setTourToDelete(tour.id);
                       setIsDeleteModalOpen(true);
                     }}
