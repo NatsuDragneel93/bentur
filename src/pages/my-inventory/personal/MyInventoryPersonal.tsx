@@ -87,8 +87,9 @@ const MyInventoryPersonal: React.FC = () => {
 
     return (
         <div className="my-inventory-personal-page">
-            <h1 className='title'>My Inventory - Personal</h1>
-            <div className="accordion-list">
+            <div className="my-inventory-personal-container">
+                <h1 className='title'>My Inventory - Personal</h1>
+                <div className="accordion-list">
                 {categories.map(category => {
                     if (!category.id) return null; // Skip categories without ID
                     
@@ -530,6 +531,7 @@ const MyInventoryPersonal: React.FC = () => {
                     </div>
                 </div>
             )}
+            </div>
         </div>
     );
 };

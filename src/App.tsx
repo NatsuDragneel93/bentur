@@ -5,6 +5,8 @@ import Home from './pages/home/Home';
 import './App.scss';
 import Tours from './pages/tours/Tours';
 import ToDo from './pages/to-do/ToDo';
+import ToDoPersonal from './pages/to-do/personal/ToDoPersonal';
+import ToDoTour from './pages/to-do/tour/ToDoTour';
 import ToBuy from './pages/to-buy/ToBuy';
 import MyInventory from './pages/my-inventory/MyInventory';
 import Manuals from './pages/manuals/Manuals';
@@ -31,6 +33,8 @@ const App: React.FC = () => {
                     <Route path="/home" element={<Home />} />
                     <Route path="/tours" element={<Tours />} />
                     <Route path="/to-do" element={<ToDo />} />
+                    <Route path="/to-do/personal" element={<ToDoPersonal />} />
+                    <Route path="/to-do/tour" element={<ToDoTour />} />
                     <Route path="/to-buy" element={<ToBuy />} />
                     <Route path="/my-inventory" element={<MyInventory />} />
                     <Route path="/my-inventory/personal" element={<MyInventoryPersonal />} />

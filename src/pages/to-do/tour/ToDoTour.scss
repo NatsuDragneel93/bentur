@@ -1,0 +1,40 @@
+.todo-tour-page {
+  height: 100%;
+  background-color: black;
+  overflow-y: auto;
+  padding: 20px 10px;
+
+  @media (max-width: 768px) {
+    padding: 20px;
+  }
+}
+
+.todo-tour-container {
+  width: 100%;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+
+  h1 {
+    font-size: 2.5rem;
+    color: white;
+    margin-bottom: 2rem;
+  }
+}
+
+.todo-tour-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 50vh;
+  
+  p {
+    font-size: 1.5rem;
+    color: #ccc;
+    background-color: #222;
+    padding: 2rem;
+    border-radius: 10px;
+    border: 1px solid #444;
+  }
+}
