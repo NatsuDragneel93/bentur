@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './MyInventoryPersonal.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faEdit, faTrash, faPlus } from '@fortawesome/free-solid-svg-icons';
 import { useFirebase } from '../../../context/firebase.context';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import myInventoryPersonalService, { type InventoryCategory } from '../../../services/myInventoryPersonal.service';
@@ -131,7 +131,7 @@ const MyInventoryPersonal: React.FC = () => {
                             </div>
                         </div>
                         {expanded[category.id] && (
-                            <div className="accordion-content" style={{ position: 'relative', paddingBottom: '48px' }}>
+                            <div className="accordion-content" style={{ position: 'relative'}}>
                                 {category.data.length === 0
                                     ? <span>Nessun materiale presente</span>
                                     : (
@@ -180,9 +180,10 @@ const MyInventoryPersonal: React.FC = () => {
                                         setNewDataNumber(1);
                                         setIsAddDataModalOpen(true);
                                     }}
+                                    style={{ position: 'static', marginTop: '16px' }}
                                     title="Aggiungi elemento"
                                 >
-                                    +
+                                    <FontAwesomeIcon icon={faPlus} /> Aggiungi Item
                                 </button>
                             </div>
                         )}
