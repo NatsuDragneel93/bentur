@@ -7,13 +7,14 @@ import { User, onAuthStateChanged } from 'firebase/auth';
 import { useParams, useNavigate } from 'react-router-dom';
 import toursService, { Tour } from '../../services/tours.service';
 import TourDetail from './components/TourDetail';
+import ArtistDetail from './components/ArtistDetail';
 
 const Tours: React.FC = () => {
   const [tours, setTours] = useState<Tour[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const firebase = useFirebase();
-  const { tourId } = useParams();
+  const { tourId, artistId } = useParams();
   const navigate = useNavigate();
 
   // Modal states
@@ -130,12 +131,24 @@ const Tours: React.FC = () => {
     );
   }
 
+  // Se è selezionato un artista, mostra il dettaglio dell'artista
+  if (tourId && artistId) {
+    return (
+      <ArtistDetail
+        tourId={tourId}
+        artistId={artistId}
+        onBack={() => navigate(`/tours/${tourId}`)}
+      />
+    );
+  }
+
   // Se è selezionato un tour, mostra il dettaglio
   if (tourId) {
     return (
       <TourDetail
         tourId={tourId}
         onBack={() => navigate('/tours')}
+        onArtistClick={(artistId) => navigate(`/tours/${tourId}/artists/${artistId}`)}
       />
     );
   }

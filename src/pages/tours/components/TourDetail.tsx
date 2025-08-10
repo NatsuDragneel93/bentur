@@ -10,9 +10,10 @@ import tourArtistsService, { TourArtist } from '../../../services/tourArtists.se
 interface TourDetailProps {
   tourId: string;
   onBack: () => void;
+  onArtistClick?: (artistId: string) => void;
 }
 
-const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack }) => {
+const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }) => {
   const [tour, setTour] = useState<Tour | null>(null);
   const [artists, setArtists] = useState<TourArtist[]>([]);
   const [user, setUser] = useState<User | null>(null);
@@ -193,7 +194,10 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack }) => {
             {artists.map(artist => (
               <li key={artist.id} className="artist-item">
                 <div className="artist-content">
-                  <div className="artist-info">
+                  <div 
+                    className="artist-info clickable" 
+                    onClick={() => onArtistClick?.(artist.id)}
+                  >
                     <span className="artist-name">{artist.name}</span>
                     <span className="artist-role">{artist.role}</span>
                   </div>

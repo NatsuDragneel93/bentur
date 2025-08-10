@@ -141,6 +141,15 @@
   flex: 1;
 }
 
+.artist-info.clickable {
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.artist-info.clickable:hover {
+  color: #4CAF50;
+}
+
 .artist-name {
   font-weight: bold;
   font-size: 1.1rem;
