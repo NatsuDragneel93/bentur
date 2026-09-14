@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Migrazioni: backup dei dati e chiavi service account (MAI nel repo)
+backups/
+*service-account*.json
+*firebase-adminsdk*.json

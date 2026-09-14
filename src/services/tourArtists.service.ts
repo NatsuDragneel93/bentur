@@ -1,15 +1,14 @@
-import { 
-  collection, 
-  addDoc, 
+import {
+  collection,
+  addDoc,
   getDoc,
   getDocs,
   doc,
-  updateDoc, 
-  deleteDoc,
-  query,
-  where
+  updateDoc,
+  deleteDoc
 } from 'firebase/firestore';
 import FirebaseService from './firebase.service';
+import { TOUR_ARTISTS_SUBCOLLECTION, TOURS_COLLECTION } from './tours.service';
 
 export interface TourArtist {
   id: string;
@@ -20,48 +19,50 @@ export interface TourArtist {
   updatedAt: Date;
 }
 
-class TourArtistsService {
-  private collectionName = 'tour_artists';
-  private db = FirebaseService.database!;
+export type ArtistDetails = Pick<TourArtist, 'name' | 'role'>;
 
-  // Ottieni tutti gli artisti di un tour specifico
+const toArtist = (tourId: string, id: string, data: Record<string, unknown>): TourArtist => ({
+  ...(data as ArtistDetails),
+  id,
+  tourId,
+  createdAt: (data.createdAt as { toDate?: () => Date } | undefined)?.toDate?.() ?? new Date(),
+  updatedAt: (data.updatedAt as { toDate?: () => Date } | undefined)?.toDate?.() ?? new Date(),
+});
+
+// Artisti di un tour: sottocollection tours/{tourId}/artists
+class TourArtistsService {
+  private db = FirebaseService.database;
+
+  private artistsCollection(tourId: string) {
+    return collection(this.db, TOURS_COLLECTION, tourId, TOUR_ARTISTS_SUBCOLLECTION);
+  }
+
+  private artistDoc(tourId: string, artistId: string) {
+    return doc(this.db, TOURS_COLLECTION, tourId, TOUR_ARTISTS_SUBCOLLECTION, artistId);
+  }
+
+  // Artisti del tour ordinati per nome
   async getTourArtists(tourId: string): Promise<TourArtist[]> {
     try {
-      const artistsRef = collection(this.db, this.collectionName);
-      const q = query(
-        artistsRef, 
-        where('tourId', '==', tourId)
-      );
-      const querySnapshot = await getDocs(q);
-      
-      const artists = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-      })) as TourArtist[];
-
-      // Ordina per nome lato client per evitare la necessità di indici composti
-      return artists.sort((a, b) => a.name.localeCompare(b.name));
+      const snapshot = await getDocs(this.artistsCollection(tourId));
+      return snapshot.docs
+        .map(artistDoc => toArtist(tourId, artistDoc.id, artistDoc.data()))
+        .sort((a, b) => a.name.localeCompare(b.name));
     } catch (error) {
       console.error('Error getting tour artists:', error);
       throw error;
     }
   }
 
-  // Aggiungi un nuovo artista a un tour
-  async addTourArtist(tourId: string, name: string, role: string): Promise<string> {
+  async addTourArtist(tourId: string, details: ArtistDetails): Promise<string> {
     try {
       const now = new Date();
-      const artistData = {
-        tourId,
-        name,
-        role,
+      const docRef = await addDoc(this.artistsCollection(tourId), {
+        name: details.name,
+        role: details.role,
         createdAt: now,
         updatedAt: now,
-      };
-
-      const docRef = await addDoc(collection(this.db, this.collectionName), artistData);
+      });
       return docRef.id;
     } catch (error) {
       console.error('Error adding tour artist:', error);
@@ -69,12 +70,11 @@ class TourArtistsService {
     }
   }
 
-  // Aggiorna un artista esistente
-  async updateTourArtist(artistId: string, updates: Partial<Omit<TourArtist, 'id' | 'tourId' | 'createdAt'>>): Promise<void> {
+  async updateTourArtist(tourId: string, artistId: string, details: ArtistDetails): Promise<void> {
     try {
-      const artistRef = doc(this.db, this.collectionName, artistId);
-      await updateDoc(artistRef, {
-        ...updates,
+      await updateDoc(this.artistDoc(tourId, artistId), {
+        name: details.name,
+        role: details.role,
         updatedAt: new Date(),
       });
     } catch (error) {
@@ -83,42 +83,19 @@ class TourArtistsService {
     }
   }
 
-  // Elimina un artista
-  async deleteTourArtist(artistId: string): Promise<void> {
+  async deleteTourArtist(tourId: string, artistId: string): Promise<void> {
     try {
-      const artistRef = doc(this.db, this.collectionName, artistId);
-      await deleteDoc(artistRef);
+      await deleteDoc(this.artistDoc(tourId, artistId));
     } catch (error) {
       console.error('Error deleting tour artist:', error);
       throw error;
     }
   }
 
-  // Elimina tutti gli artisti di un tour (quando si elimina un tour)
-  async deleteTourArtists(tourId: string): Promise<void> {
+  async getTourArtistById(tourId: string, artistId: string): Promise<TourArtist | null> {
     try {
-      const artists = await this.getTourArtists(tourId);
-      const deletePromises = artists.map(artist => this.deleteTourArtist(artist.id));
-      await Promise.all(deletePromises);
-    } catch (error) {
-      console.error('Error deleting tour artists:', error);
-      throw error;
-    }
-  }
-
-  // Ottieni un singolo artista per ID
-  async getTourArtistById(artistId: string): Promise<TourArtist | null> {
-    try {
-      const artist = await getDoc(doc(this.db, this.collectionName, artistId));
-      if (!artist.exists()) return null;
-
-      const data = artist.data();
-      return {
-        id: artist.id,
-        ...data,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate() || new Date(),
-      } as TourArtist;
+      const artistDoc = await getDoc(this.artistDoc(tourId, artistId));
+      return artistDoc.exists() ? toArtist(tourId, artistDoc.id, artistDoc.data()) : null;
     } catch (error) {
       console.error('Error getting tour artist by ID:', error);
       throw error;

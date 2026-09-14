@@ -6,6 +6,7 @@ import { faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import toursService, { Tour } from '../../services/tours.service';
 import { useToast } from '../../hooks/useToast';
+import { useRequiredUser } from '../../hooks/useAuth';
 import TourDetail from './components/TourDetail';
 import ArtistDetail from './components/ArtistDetail';
 import FormModal from '../../components/ui/FormModal';
@@ -16,6 +17,7 @@ import FloatingAddButton from '../../components/ui/FloatingAddButton';
 const Tours: React.FC = () => {
   const { showError } = useToast();
   const { t } = useTranslation();
+  const user = useRequiredUser();
   const [tours, setTours] = useState<Tour[]>([]);
   const [loading, setLoading] = useState(true);
   const { tourId, artistId } = useParams();
@@ -30,12 +32,12 @@ const Tours: React.FC = () => {
 
   const loadTours = useCallback(async () => {
     try {
-      setTours(await toursService.getAllTours());
+      setTours(await toursService.getUserTours(user.uid));
     } catch (error) {
       console.error('Error loading tours:', error);
       showError(t('tours.loadError'));
     }
-  }, [showError, t]);
+  }, [user.uid, showError, t]);
 
   useEffect(() => {
     loadTours().finally(() => setLoading(false));
@@ -69,18 +71,16 @@ const Tours: React.FC = () => {
     }
 
     try {
+      const details = {
+        name: tourName.trim(),
+        stagePlot: tourStagePlot.trim(),
+        channelList: tourChannelList.trim()
+      };
+
       if (tourToEdit) {
-        await toursService.updateTour(tourToEdit.id, {
-          name: tourName.trim(),
-          stagePlot: tourStagePlot.trim(),
-          channelList: tourChannelList.trim()
-        });
+        await toursService.updateTour(tourToEdit.id, details);
       } else {
-        await toursService.addTour(
-          tourName.trim(),
-          tourStagePlot.trim() || undefined,
-          tourChannelList.trim() || undefined
-        );
+        await toursService.addTour(user.uid, details);
       }
 
       await loadTours();
@@ -148,32 +148,34 @@ const Tours: React.FC = () => {
                 style={{ cursor: 'pointer' }}
               >
                 <span className="tour-name">{tour.name}</span>
-                <div className="tour-actions">
-                  <button
-                    className="tour-edit-button"
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation(); // Previene il click sul tour-content
-                      openEditModal(tour);
-                    }}
-                    title={t('tours.editTitle')}
-                    aria-label={t('tours.editLabel', { name: tour.name })}
-                  >
-                    <FontAwesomeIcon icon={faEdit} />
-                  </button>
-                  <button
-                    className="tour-delete-button"
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation(); // Previene il click sul tour-content
-                      setTourToDelete(tour.id);
-                    }}
-                    title={t('common.delete')}
-                    aria-label={t('tours.deleteLabel', { name: tour.name })}
-                  >
-                    <FontAwesomeIcon icon={faTrash} />
-                  </button>
-                </div>
+                {tour.ownerId === user.uid && (
+                  <div className="tour-actions">
+                    <button
+                      className="tour-edit-button"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation(); // Previene il click sul tour-content
+                        openEditModal(tour);
+                      }}
+                      title={t('tours.editTitle')}
+                      aria-label={t('tours.editLabel', { name: tour.name })}
+                    >
+                      <FontAwesomeIcon icon={faEdit} />
+                    </button>
+                    <button
+                      className="tour-delete-button"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation(); // Previene il click sul tour-content
+                        setTourToDelete(tour.id);
+                      }}
+                      title={t('common.delete')}
+                      aria-label={t('tours.deleteLabel', { name: tour.name })}
+                    >
+                      <FontAwesomeIcon icon={faTrash} />
+                    </button>
+                  </div>
+                )}
               </div>
             </li>
           ))}

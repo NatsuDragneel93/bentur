@@ -6,6 +6,7 @@ import { faEdit, faTrash, faArrowLeft, faExternalLinkAlt } from '@fortawesome/fr
 import toursService, { Tour } from '../../../services/tours.service';
 import tourArtistsService, { TourArtist } from '../../../services/tourArtists.service';
 import { useToast } from '../../../hooks/useToast';
+import { useRequiredUser } from '../../../hooks/useAuth';
 import FormModal from '../../../components/ui/FormModal';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import LoadingState from '../../../components/ui/LoadingState';
@@ -20,6 +21,7 @@ interface TourDetailProps {
 const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }) => {
   const { showError, showToast } = useToast();
   const { t } = useTranslation();
+  const user = useRequiredUser();
   const [tour, setTour] = useState<Tour | null>(null);
   const [artists, setArtists] = useState<TourArtist[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,13 +34,10 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
 
   const loadTourData = useCallback(async () => {
     try {
-      const [tourData, artistsData] = await Promise.all([
-        toursService.getTourById(tourId),
-        tourArtistsService.getTourArtists(tourId)
-      ]);
-
+      // Prima il tour: se non esiste o non è accessibile, gli artisti non vanno letti
+      const tourData = await toursService.getTourById(tourId);
       setTour(tourData);
-      setArtists(artistsData);
+      setArtists(tourData ? await tourArtistsService.getTourArtists(tourId) : []);
     } catch (error) {
       console.error('Error loading tour data:', error);
       showError(t('tourDetail.loadError'));
@@ -77,12 +76,12 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
 
     try {
       if (artistToEdit) {
-        await tourArtistsService.updateTourArtist(artistToEdit.id, {
+        await tourArtistsService.updateTourArtist(tourId, artistToEdit.id, {
           name: artistName.trim(),
           role: artistRole.trim()
         });
       } else {
-        await tourArtistsService.addTourArtist(tourId, artistName.trim(), artistRole.trim());
+        await tourArtistsService.addTourArtist(tourId, { name: artistName.trim(), role: artistRole.trim() });
       }
 
       await loadTourData();
@@ -97,7 +96,7 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
     if (!artistToDelete) return;
 
     try {
-      await tourArtistsService.deleteTourArtist(artistToDelete);
+      await tourArtistsService.deleteTourArtist(tourId, artistToDelete);
       await loadTourData();
       setArtistToDelete(null);
     } catch (error) {
@@ -129,6 +128,9 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
       </div>
     );
   }
+
+  // Solo il proprietario modifica gli artisti; i membri (condivisione futura) li vedono soltanto
+  const isOwner = tour.ownerId === user.uid;
 
   return (
     <div className="tour-detail-container">
@@ -177,33 +179,35 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
                     <span className="artist-name">{artist.name}</span>
                     <span className="artist-role">{artist.role}</span>
                   </div>
-                  <div className="artist-actions">
-                    <button
-                      className="artist-edit-button"
-                      type="button"
-                      onClick={() => openEditArtistModal(artist)}
-                      title={t('tourDetail.editArtistTitle')}
-                      aria-label={t('tourDetail.editArtistLabel', { name: artist.name })}
-                    >
-                      <FontAwesomeIcon icon={faEdit} />
-                    </button>
-                    <button
-                      className="artist-delete-button"
-                      type="button"
-                      onClick={() => setArtistToDelete(artist.id)}
-                      title={t('common.delete')}
-                      aria-label={t('tourDetail.deleteArtistLabel', { name: artist.name })}
-                    >
-                      <FontAwesomeIcon icon={faTrash} />
-                    </button>
-                  </div>
+                  {isOwner && (
+                    <div className="artist-actions">
+                      <button
+                        className="artist-edit-button"
+                        type="button"
+                        onClick={() => openEditArtistModal(artist)}
+                        title={t('tourDetail.editArtistTitle')}
+                        aria-label={t('tourDetail.editArtistLabel', { name: artist.name })}
+                      >
+                        <FontAwesomeIcon icon={faEdit} />
+                      </button>
+                      <button
+                        className="artist-delete-button"
+                        type="button"
+                        onClick={() => setArtistToDelete(artist.id)}
+                        title={t('common.delete')}
+                        aria-label={t('tourDetail.deleteArtistLabel', { name: artist.name })}
+                      >
+                        <FontAwesomeIcon icon={faTrash} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </li>
             ))}
           </ul>
         </div>
 
-        <FloatingAddButton label={t('tourDetail.addArtist')} onClick={openAddArtistModal} />
+        {isOwner && <FloatingAddButton label={t('tourDetail.addArtist')} onClick={openAddArtistModal} />}
       </div>
 
       <FormModal

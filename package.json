@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "test": "vitest",
     "test:run": "vitest run",
+    "migrate:tours": "node scripts/migrate-tours.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -37,6 +38,7 @@
     "eslint": "^9.21.0",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.19",
+    "firebase-admin": "^13.10.0",
     "globals": "^15.15.0",
     "jsdom": "^26.1.0",
     "typescript": "~5.7.2",

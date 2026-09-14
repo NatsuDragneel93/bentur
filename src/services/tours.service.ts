@@ -7,56 +7,71 @@ import {
   updateDoc,
   query,
   where,
-  orderBy,
   writeBatch
 } from 'firebase/firestore';
 import FirebaseService from './firebase.service';
+
+// Percorsi Firestore dei tour. Gli artisti sono una sottocollection: tours/{tourId}/artists
+// (usati anche da scripts/migrate-tours.mjs: tenerli allineati)
+export const TOURS_COLLECTION = 'tours';
+export const TOUR_ARTISTS_SUBCOLLECTION = 'artists';
 
 export interface Tour {
   id: string;
   name: string;
   stagePlot?: string;
   channelList?: string;
+  // Chi ha creato il tour: è l'unico che può modificarlo o eliminarlo
+  ownerId: string;
+  // Chi può vedere il tour (proprietario compreso); servirà per la condivisione con la crew
+  memberIds: string[];
   createdAt: Date;
   updatedAt: Date;
 }
 
-class ToursService {
-  private collectionName = 'tours';
-  private db = FirebaseService.database!;
+export type TourDetails = Pick<Tour, 'name' | 'stagePlot' | 'channelList'>;
 
-  // Ottieni tutti i tour ordinati per nome
-  async getAllTours(): Promise<Tour[]> {
+const toTour = (id: string, data: Record<string, unknown>): Tour => ({
+  ...(data as Omit<Tour, 'id' | 'createdAt' | 'updatedAt'>),
+  id,
+  memberIds: (data.memberIds as string[] | undefined) ?? [],
+  createdAt: (data.createdAt as { toDate?: () => Date } | undefined)?.toDate?.() ?? new Date(),
+  updatedAt: (data.updatedAt as { toDate?: () => Date } | undefined)?.toDate?.() ?? new Date(),
+});
+
+class ToursService {
+  private db = FirebaseService.database;
+
+  // Tour di cui l'utente è membro, ordinati per nome
+  async getUserTours(userId: string): Promise<Tour[]> {
     try {
-      const toursRef = collection(this.db!, this.collectionName);
-      const q = query(toursRef, orderBy('name', 'asc'));
-      const querySnapshot = await getDocs(q);
-      
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-      })) as Tour[];
+      const snapshot = await getDocs(
+        query(collection(this.db, TOURS_COLLECTION), where('memberIds', 'array-contains', userId))
+      );
+
+      // Ordinamento lato client: orderBy insieme ad array-contains richiederebbe un indice composto
+      return snapshot.docs
+        .map(tourDoc => toTour(tourDoc.id, tourDoc.data()))
+        .sort((a, b) => a.name.localeCompare(b.name));
     } catch (error) {
       console.error('Error getting tours:', error);
       throw error;
     }
   }
 
-  // Aggiungi un nuovo tour
-  async addTour(name: string, stagePlot?: string, channelList?: string): Promise<string> {
+  // Crea un tour di proprietà dell'utente
+  async addTour(userId: string, details: TourDetails): Promise<string> {
     try {
       const now = new Date();
-      const tourData = {
-        name,
-        stagePlot: stagePlot || '',
-        channelList: channelList || '',
+      const docRef = await addDoc(collection(this.db, TOURS_COLLECTION), {
+        name: details.name,
+        stagePlot: details.stagePlot || '',
+        channelList: details.channelList || '',
+        ownerId: userId,
+        memberIds: [userId],
         createdAt: now,
         updatedAt: now,
-      };
-
-      const docRef = await addDoc(collection(this.db!, this.collectionName), tourData);
+      });
       return docRef.id;
     } catch (error) {
       console.error('Error adding tour:', error);
@@ -64,12 +79,13 @@ class ToursService {
     }
   }
 
-  // Aggiorna un tour esistente
-  async updateTour(tourId: string, updates: Partial<Omit<Tour, 'id' | 'createdAt'>>): Promise<void> {
+  // Aggiorna i dati del tour (proprietario e membri non si modificano da qui)
+  async updateTour(tourId: string, details: TourDetails): Promise<void> {
     try {
-      const tourRef = doc(this.db!, this.collectionName, tourId);
-      await updateDoc(tourRef, {
-        ...updates,
+      await updateDoc(doc(this.db, TOURS_COLLECTION, tourId), {
+        name: details.name,
+        stagePlot: details.stagePlot || '',
+        channelList: details.channelList || '',
         updatedAt: new Date(),
       });
     } catch (error) {
@@ -83,10 +99,10 @@ class ToursService {
     try {
       const batch = writeBatch(this.db);
       const artistsSnapshot = await getDocs(
-        query(collection(this.db, 'tour_artists'), where('tourId', '==', tourId))
+        collection(this.db, TOURS_COLLECTION, tourId, TOUR_ARTISTS_SUBCOLLECTION)
       );
       artistsSnapshot.docs.forEach(artistDoc => batch.delete(artistDoc.ref));
-      batch.delete(doc(this.db, this.collectionName, tourId));
+      batch.delete(doc(this.db, TOURS_COLLECTION, tourId));
       await batch.commit();
     } catch (error) {
       console.error('Error deleting tour:', error);
@@ -97,17 +113,11 @@ class ToursService {
   // Ottieni un singolo tour per ID
   async getTourById(tourId: string): Promise<Tour | null> {
     try {
-      const tourDoc = await getDoc(doc(this.db, this.collectionName, tourId));
-      if (!tourDoc.exists()) return null;
-
-      const data = tourDoc.data();
-      return {
-        id: tourDoc.id,
-        ...data,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate() || new Date(),
-      } as Tour;
+      const tourDoc = await getDoc(doc(this.db, TOURS_COLLECTION, tourId));
+      return tourDoc.exists() ? toTour(tourDoc.id, tourDoc.data()) : null;
     } catch (error) {
+      // Tour di cui l'utente non è membro: per lui è come se non esistesse
+      if ((error as { code?: string }).code === 'permission-denied') return null;
       console.error('Error getting tour by ID:', error);
       throw error;
     }

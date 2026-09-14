@@ -19,6 +19,7 @@ Per ora solo online; la gestione offline è prevista in futuro (tenerne conto ne
 - `npm run lint` — ESLint
 - `npm test` — Vitest in watch; `npm run test:run` — esecuzione singola
 - Deploy: `npm run build` poi `firebase deploy`
+- `scripts/migrate-tours.mjs` — migrazione una tantum dei tour (Admin SDK; chiave service account fuori dal repo; senza `--apply` è solo una prova)
 
 ## Struttura
 - `src/services/firebase.service.ts` — istanze Firebase `auth`, `provider`, `database` (importate direttamente dai servizi)
@@ -41,8 +42,9 @@ Per ora solo online; la gestione offline è prevista in futuro (tenerne conto ne
 | `user_inventory_personal` | per utente | categoria `{title, data: [{id,name,number,order}]}` |
 | `manuals` | per utente | `{title, link}` |
 | `usefulContacts` | per utente | `{name, category, phone, email, city, notes}` |
-| `tours` | **globale** (nessun userId) | `{name, stagePlot, channelList}` (URL) |
-| `tour_artists` | per `tourId` | `{tourId, name, role}` |
+| `tours` | membri (`memberIds` array-contains uid) | `{name, stagePlot, channelList, ownerId, memberIds}`; modifica/eliminazione solo `ownerId` |
+| `tours/{tourId}/artists` | membri del tour in lettura, proprietario in scrittura | `{name, role}` |
+| `tour_artists` | **legacy**, negata dalle regole | vecchia collection globale degli artisti; si svuota con `scripts/migrate-tours.mjs --delete-legacy` |
 
 Gli item delle liste sono array dentro il documento categoria. Offline non richiesto: le modifiche agli array passano da transazioni Firestore (niente migrazione a subcollection). Nomi dei campi array diversi per collection (`todos`, `tobuys`, `data`): non rinominarli, i dati esistenti li usano.
 
