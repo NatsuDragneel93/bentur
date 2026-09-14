@@ -73,7 +73,6 @@ class UsefulContactsService {
       };
 
       const docRef = await addDoc(collection(this.db, this.collectionName), newContact);
-      console.log('Contatto aggiunto con ID:', docRef.id);
       return docRef.id;
     } catch (error) {
       console.error('Errore nell\'aggiunta del contatto:', error);
@@ -91,7 +90,6 @@ class UsefulContactsService {
       };
       
       await updateDoc(contactRef, updateData);
-      console.log('Contatto aggiornato con successo');
     } catch (error) {
       console.error('Errore nell\'aggiornamento del contatto:', error);
       throw error;
@@ -103,7 +101,6 @@ class UsefulContactsService {
     try {
       const contactRef = doc(this.db, this.collectionName, contactId);
       await deleteDoc(contactRef);
-      console.log('Contatto eliminato con successo');
     } catch (error) {
       console.error('Errore nell\'eliminazione del contatto:', error);
       throw error;

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signInWithPopup } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup } from 'firebase/auth';
 import { useFirebase } from '../../context/firebase.context';
 import './Login.scss';
 
@@ -9,18 +9,21 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const firebase = useFirebase();
 
+  // Se l'utente è già autenticato, non ha senso mostrare il login
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(firebase.auth, (currentUser) => {
+      if (currentUser) {
+        navigate('/home', { replace: true });
+      }
+    });
+
+    return () => unsubscribe();
+  }, [firebase.auth, navigate]);
+
   const handleGoogleLogin = async () => {
     try {
       setIsLoading(true);
-      const result = await signInWithPopup(firebase.auth, firebase.provider);
-      const user = result.user;
-      
-      // Console.log del nome dell'utente
-      console.log('Utente autenticato:', user.displayName);
-      console.log('Email:', user.email);
-      console.log('ID utente:', user.uid);
-      
-      // Naviga alla home page
+      await signInWithPopup(firebase.auth, firebase.provider);
       navigate('/home');
     } catch (error) {
       console.error('Errore durante l\'autenticazione:', error);
@@ -35,7 +38,7 @@ const LoginPage: React.FC = () => {
       <h1>Ben Tur</h1>
       <div className='login-form-container'>
         <div className='login-google-container'>
-          <button 
+          <button
             className='google-login-button'
             onClick={handleGoogleLogin}
             disabled={isLoading}

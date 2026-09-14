@@ -14,12 +14,12 @@ const Manuals: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [manualToDelete, setManualToDelete] = useState<number | null>(null);
+  const [manualToDelete, setManualToDelete] = useState<string | null>(null);
   const [newManual, setNewManual] = useState<Omit<Manual, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>({
-    title: '', 
+    title: '',
     link: ''
   });
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(firebase.auth, (currentUser) => {
@@ -59,14 +59,16 @@ const Manuals: React.FC = () => {
       return;
     }
 
+    if (!newManual.title.trim() || !newManual.link.trim()) {
+      alert('Titolo e link sono obbligatori');
+      return;
+    }
+
     try {
-      if (editingIndex !== null) {
+      if (editingId !== null) {
         // Modifica manuale esistente
-        const manualToUpdate = manuals[editingIndex];
-        if (manualToUpdate.id) {
-          await manualsService.updateManual(manualToUpdate.id, newManual);
-          await loadUserManuals(user.uid);
-        }
+        await manualsService.updateManual(editingId, newManual);
+        await loadUserManuals(user.uid);
       } else {
         // Aggiungi nuovo manuale
         await manualsService.addManual(user.uid, newManual);
@@ -74,7 +76,7 @@ const Manuals: React.FC = () => {
       }
       
       setNewManual({ title: '', link: '' });
-      setEditingIndex(null);
+      setEditingId(null);
       setIsModalOpen(false);
     } catch (error) {
       console.error('Errore nel salvare il manuale:', error);
@@ -86,11 +88,8 @@ const Manuals: React.FC = () => {
     if (!user || manualToDelete === null) return;
 
     try {
-      const manualToRemove = manuals[manualToDelete];
-      if (manualToRemove.id) {
-        await manualsService.deleteManual(manualToRemove.id);
-        await loadUserManuals(user.uid);
-      }
+      await manualsService.deleteManual(manualToDelete);
+      await loadUserManuals(user.uid);
       setManualToDelete(null);
       setIsDeleteModalOpen(false);
     } catch (error) {
@@ -99,19 +98,18 @@ const Manuals: React.FC = () => {
     }
   };
 
-  const handleEditManual = (index: number) => {
-    const manual = manuals[index];
+  const handleEditManual = (manual: Manual) => {
     setNewManual({
       title: manual.title,
       link: manual.link
     });
-    setEditingIndex(index);
+    setEditingId(manual.id ?? null);
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
-    setEditingIndex(null);
+    setEditingId(null);
     // Reset dei campi quando si chiude la modale
     setNewManual({ title: '', link: '' });
   };
@@ -119,7 +117,7 @@ const Manuals: React.FC = () => {
   const openAddManualModal = () => {
     // Reset dei campi prima di aprire la modale per un nuovo manuale
     setNewManual({ title: '', link: '' });
-    setEditingIndex(null);
+    setEditingId(null);
     setIsModalOpen(true);
   };
 
@@ -159,7 +157,7 @@ const Manuals: React.FC = () => {
           />
         </div>
         <div className="manuals-list">
-          {filteredManuals.map((manual, index) => (
+          {filteredManuals.map((manual) => (
             <div key={manual.id} className="manual-item">
               <div className="manual-info">
                 <span className="manual-title">{manual.title}</span>
@@ -174,13 +172,13 @@ const Manuals: React.FC = () => {
                 >
                   <FontAwesomeIcon icon={faExternalLinkAlt} /> Apri
                 </a>
-                <button className="edit-button" onClick={() => handleEditManual(index)}>
+                <button className="edit-button" onClick={() => handleEditManual(manual)}>
                   <FontAwesomeIcon icon={faEdit} /> Modifica
                 </button>
                 <button
                   className="delete-button"
                   onClick={() => {
-                    setManualToDelete(index);
+                    setManualToDelete(manual.id ?? null);
                     setIsDeleteModalOpen(true);
                   }}
                 >
@@ -201,7 +199,7 @@ const Manuals: React.FC = () => {
       {isModalOpen && (
         <div className="modal">
           <div className="modal-content">
-            <h2>{editingIndex !== null ? 'Modifica Manuale' : 'Aggiungi Manuale'}</h2>
+            <h2>{editingId !== null ? 'Modifica Manuale' : 'Aggiungi Manuale'}</h2>
             <form>
               <label>
                 Titolo:
@@ -223,7 +221,7 @@ const Manuals: React.FC = () => {
               </label>
               <div className="modal-actions">
                 <button type="button" className="save-button" onClick={handleAddOrEditManual}>
-                  {editingIndex !== null ? 'Salva Modifiche' : 'Aggiungi'}
+                  {editingId !== null ? 'Salva Modifiche' : 'Aggiungi'}
                 </button>
                 <button type="button" className="cancel-button" onClick={closeModal}>
                   Annulla

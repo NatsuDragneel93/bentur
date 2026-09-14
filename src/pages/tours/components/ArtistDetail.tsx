@@ -41,9 +41,9 @@ const ArtistDetail: React.FC<ArtistDetailProps> = ({ tourId, artistId, onBack })
 
   const loadArtistData = async () => {
     try {
-      const artistsData = await tourArtistsService.getTourArtists(tourId);
-      const currentArtist = artistsData.find(a => a.id === artistId);
-      setArtist(currentArtist || null);
+      const currentArtist = await tourArtistsService.getTourArtistById(artistId);
+      // L'artista deve appartenere al tour indicato nell'URL
+      setArtist(currentArtist?.tourId === tourId ? currentArtist : null);
     } catch (error) {
       console.error('Error loading artist data:', error);
     }

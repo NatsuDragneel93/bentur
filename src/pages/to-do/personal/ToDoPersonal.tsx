@@ -130,7 +130,7 @@ const ToDoPersonal: React.FC = () => {
         );
       } else {
         // Add
-        await todoPersonalService.addTodo(expandedCategoryId, newTodoText.trim());
+        await todoPersonalService.addTodo(expandedCategoryId, newTodoText.trim(), newTodoCompleted);
         
         // Ricarica le categorie dopo l'aggiunta
         await loadCategories(user.uid);

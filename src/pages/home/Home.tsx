@@ -1,5 +1,4 @@
 import React from 'react';
-import { Card, CardContent, Typography } from '@mui/material';
 import './Home.scss';
 import { useNavigate } from 'react-router-dom';
 
@@ -22,22 +21,18 @@ const HomePage: React.FC = () => {
   return (
     <div className="home-page-container">
       <div className="card-container">
-        {cardItems.map((item, index) => (
-          <Card
-            key={index}
+        {cardItems.map((item) => (
+          <button
+            key={item}
+            type="button"
             className="custom-card"
             onClick={() => handleCardClick(`/${item.toLowerCase().replace(/\s+/g, '-')}`)}
           >
-            <CardContent className="custom-card-content">
-              <Typography variant="h5" className="custom-card-title">
-                {item}
-              </Typography>
-            </CardContent>
-          </Card>
+            <span className="custom-card-title">{item}</span>
+          </button>
         ))}
       </div>
     </div>
-
   );
 };
 

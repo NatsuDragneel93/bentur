@@ -101,7 +101,7 @@ class TodoPersonalService {
   }
 
   // Aggiungi un todo a una categoria
-  async addTodo(categoryId: string, text: string): Promise<void> {
+  async addTodo(categoryId: string, text: string, completed: boolean = false): Promise<void> {
     try {
       // Prima ottieni la categoria corrente
       const categoryRef = doc(this.db, this.collectionName, categoryId);
@@ -117,7 +117,7 @@ class TodoPersonalService {
       const newTodo: Todo = {
         id: `todo_${Date.now()}`, // ID temporaneo unico
         text: text.trim(),
-        completed: false,
+        completed,
         order: newOrder
       };
 

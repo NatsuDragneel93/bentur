@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
 import Login from './pages/login/Login';
 import Home from './pages/home/Home';
 import './App.scss';
@@ -43,6 +43,7 @@ const App: React.FC = () => {
                     <Route path="/my-inventory/tour" element={<MyInventoryTour />} />
                     <Route path="/manuals" element={<Manuals />} />
                     <Route path="/useful-contacts" element={<UsefulContacts />} />
+                    <Route path="*" element={<Navigate to="/home" replace />} />
                   </Routes>
                 </ProtectedRoute>
               }

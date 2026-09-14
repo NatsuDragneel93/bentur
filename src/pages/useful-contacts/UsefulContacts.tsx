@@ -21,8 +21,8 @@ const UsefulContacts: React.FC = () => {
     notes: '',
     city: '',
   });
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [contactToDelete, setContactToDelete] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [contactToDelete, setContactToDelete] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
@@ -80,14 +80,16 @@ const UsefulContacts: React.FC = () => {
       return;
     }
 
+    if (!newContact.name.trim() || !newContact.category) {
+      alert('Nome e categoria sono obbligatori');
+      return;
+    }
+
     try {
-      if (editingIndex !== null) {
+      if (editingId !== null) {
         // Modifica contatto esistente
-        const contactToUpdate = contacts[editingIndex];
-        if (contactToUpdate.id) {
-          await usefulContactsService.updateContact(contactToUpdate.id, newContact);
-          await loadUserContacts(user.uid);
-        }
+        await usefulContactsService.updateContact(editingId, newContact);
+        await loadUserContacts(user.uid);
       } else {
         // Aggiungi nuovo contatto
         await usefulContactsService.addContact(user.uid, newContact);
@@ -96,15 +98,14 @@ const UsefulContacts: React.FC = () => {
       
       setNewContact({ name: '', category: '', phone: '', email: '', notes: '', city: '' });
       setIsModalOpen(false);
-      setEditingIndex(null);
+      setEditingId(null);
     } catch (error) {
       console.error('Errore nel salvare il contatto:', error);
       alert('Errore nel salvare il contatto');
     }
   };
 
-  const handleEditContact = (index: number) => {
-    const contact = contacts[index];
+  const handleEditContact = (contact: Contact) => {
     setNewContact({
       name: contact.name,
       category: contact.category,
@@ -113,7 +114,7 @@ const UsefulContacts: React.FC = () => {
       notes: contact.notes,
       city: contact.city
     });
-    setEditingIndex(index);
+    setEditingId(contact.id ?? null);
     setIsModalOpen(true);
   };
 
@@ -121,11 +122,8 @@ const UsefulContacts: React.FC = () => {
     if (!user || contactToDelete === null) return;
 
     try {
-      const contactToRemove = contacts[contactToDelete];
-      if (contactToRemove.id) {
-        await usefulContactsService.deleteContact(contactToRemove.id);
-        await loadUserContacts(user.uid);
-      }
+      await usefulContactsService.deleteContact(contactToDelete);
+      await loadUserContacts(user.uid);
       setContactToDelete(null);
       setIsDeleteModalOpen(false);
     } catch (error) {
@@ -136,7 +134,7 @@ const UsefulContacts: React.FC = () => {
 
   const closeModal = () => {
     setIsModalOpen(false);
-    setEditingIndex(null);
+    setEditingId(null);
     // Reset dei campi quando si chiude la modale
     setNewContact({ name: '', category: '', phone: '', email: '', notes: '', city: '' });
   };
@@ -144,7 +142,7 @@ const UsefulContacts: React.FC = () => {
   const openAddContactModal = () => {
     // Reset dei campi prima di aprire la modale per un nuovo contatto
     setNewContact({ name: '', category: '', phone: '', email: '', notes: '', city: '' });
-    setEditingIndex(null);
+    setEditingId(null);
     setIsModalOpen(true);
   };
 
@@ -205,51 +203,6 @@ const UsefulContacts: React.FC = () => {
     <div className="useful-contacts-page-container">
       <div className='contacts-container'>
       <h1>Your Contacts</h1>
-      {/* <div className="header-container">
-        <div className="searchbar-filter">
-          <div className="search-bar">
-            <input
-              type="text"
-              placeholder="Cerca contatti..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="filters">
-            <button className="filter-button" onClick={() => setShowFilters(!showFilters)}>
-              <FontAwesomeIcon icon={faFilter} />
-            </button>
-            {showFilters && (
-              <div className="filter-section">
-                <div className="filter-group">
-                  <select
-                    className='filter-select'
-                    value={filters.category}
-                    onChange={(e) => handleFilterChange('category', e.target.value)}
-                  >
-                    <option value="">Seleziona categoria</option>
-                    <option value="Negozio strumenti">Negozio strumenti</option>
-                    <option value="Service">Service</option>
-                    <option value="Tecnico/riparatore">Tecnico/riparatore</option>
-                    <option value="Utility">Utility</option>
-                  </select>
-                </div>
-                <div className="filter-group">
-                  <select
-                    className='filter-select'
-                    value={filters.city}
-                    onChange={(e) => handleFilterChange('city', e.target.value)}
-                  >
-                    <option value="">Seleziona città</option>
-                    <option value="Genova">Genova</option>
-                    <option value="Milano">Milano</option>
-                  </select>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div> */}
 
       {isMobile ? (
         <div className="header-container mobile">
@@ -373,8 +326,8 @@ const UsefulContacts: React.FC = () => {
       )}
   
       <div className="contacts-list">
-        {filteredContacts.map((contact, index) => (
-          <div key={index} className="contact-card">
+        {filteredContacts.map((contact) => (
+          <div key={contact.id} className="contact-card">
             <h3>{contact.name}</h3>
             <div className="card-row"><strong>Categoria:</strong> {contact.category}</div>
             <div className="card-row"><strong>Telefono:</strong> {contact.phone}</div>
@@ -382,11 +335,11 @@ const UsefulContacts: React.FC = () => {
             <div className="card-row"><strong>Città:</strong> {contact.city}</div>
             <div className="card-row"><strong>Note:</strong> {contact.notes}</div>
             <div className="card-actions">
-              <button className="edit-button" onClick={() => handleEditContact(index)}>
+              <button className="edit-button" onClick={() => handleEditContact(contact)}>
                 <FontAwesomeIcon icon={faEdit} /> Modifica
               </button>
               <button className="delete-button" onClick={() => {
-                setContactToDelete(index);
+                setContactToDelete(contact.id ?? null);
                 setIsDeleteModalOpen(true);
               }}>
                 <FontAwesomeIcon icon={faTrash} />
@@ -399,7 +352,7 @@ const UsefulContacts: React.FC = () => {
       {isModalOpen && (
         <div className="modal">
           <div className="modal-content">
-            <h2>{editingIndex !== null ? 'Modifica Contatto' : 'Aggiungi Nuovo Contatto'}</h2>
+            <h2>{editingId !== null ? 'Modifica Contatto' : 'Aggiungi Nuovo Contatto'}</h2>
             <form>
               <label>
                 Nome:
@@ -433,7 +386,7 @@ const UsefulContacts: React.FC = () => {
               </label>
               <div className="add-edit-actions">
                 <button type="button" className="save-button" onClick={handleAddOrEditContact}>
-                  {editingIndex !== null ? 'Salva Modifiche' : 'Salva'}
+                  {editingId !== null ? 'Salva Modifiche' : 'Salva'}
                 </button>
                 <button type="button" className="cancel-button" onClick={closeModal}>
                   Annulla

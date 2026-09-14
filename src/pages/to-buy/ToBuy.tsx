@@ -559,7 +559,7 @@ const ToBuy: React.FC = () => {
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
-                if (!categoryToEdit?.id || !user) return;
+                if (!categoryToEdit?.id || !user || !editCategoryTitle.trim()) return;
                 
                 try {
                   await toBuyService.updateCategory(categoryToEdit.id, editCategoryTitle);

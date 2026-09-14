@@ -1,8 +1,9 @@
 import { 
   collection, 
   addDoc, 
-  getDocs, 
-  doc, 
+  getDoc,
+  getDocs,
+  doc,
   updateDoc, 
   deleteDoc,
   query,
@@ -108,17 +109,15 @@ class TourArtistsService {
   // Ottieni un singolo artista per ID
   async getTourArtistById(artistId: string): Promise<TourArtist | null> {
     try {
-      const artistsRef = collection(this.db, this.collectionName);
-      const querySnapshot = await getDocs(artistsRef);
-      const artist = querySnapshot.docs.find(doc => doc.id === artistId);
-      
-      if (!artist) return null;
-      
+      const artist = await getDoc(doc(this.db, this.collectionName, artistId));
+      if (!artist.exists()) return null;
+
+      const data = artist.data();
       return {
         id: artist.id,
-        ...artist.data(),
-        createdAt: artist.data().createdAt?.toDate() || new Date(),
-        updatedAt: artist.data().updatedAt?.toDate() || new Date(),
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
       } as TourArtist;
     } catch (error) {
       console.error('Error getting tour artist by ID:', error);

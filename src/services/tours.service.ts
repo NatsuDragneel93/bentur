@@ -1,12 +1,14 @@
-import { 
-  collection, 
-  addDoc, 
+import {
+  collection,
+  addDoc,
+  getDoc,
   getDocs,
-  doc, 
-  updateDoc, 
-  deleteDoc,
+  doc,
+  updateDoc,
   query,
-  orderBy
+  where,
+  orderBy,
+  writeBatch
 } from 'firebase/firestore';
 import FirebaseService from './firebase.service';
 
@@ -76,11 +78,16 @@ class ToursService {
     }
   }
 
-  // Elimina un tour
+  // Elimina un tour insieme ai suoi artisti, in un'unica operazione atomica
   async deleteTour(tourId: string): Promise<void> {
     try {
-      const tourRef = doc(this.db!, this.collectionName, tourId);
-      await deleteDoc(tourRef);
+      const batch = writeBatch(this.db);
+      const artistsSnapshot = await getDocs(
+        query(collection(this.db, 'tour_artists'), where('tourId', '==', tourId))
+      );
+      artistsSnapshot.docs.forEach(artistDoc => batch.delete(artistDoc.ref));
+      batch.delete(doc(this.db, this.collectionName, tourId));
+      await batch.commit();
     } catch (error) {
       console.error('Error deleting tour:', error);
       throw error;
@@ -90,8 +97,16 @@ class ToursService {
   // Ottieni un singolo tour per ID
   async getTourById(tourId: string): Promise<Tour | null> {
     try {
-      const tours = await this.getAllTours();
-      return tours.find(tour => tour.id === tourId) || null;
+      const tourDoc = await getDoc(doc(this.db, this.collectionName, tourId));
+      if (!tourDoc.exists()) return null;
+
+      const data = tourDoc.data();
+      return {
+        id: tourDoc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || new Date(),
+      } as Tour;
     } catch (error) {
       console.error('Error getting tour by ID:', error);
       throw error;

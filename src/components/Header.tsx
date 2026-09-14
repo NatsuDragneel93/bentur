@@ -1,4 +1,4 @@
- import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './Header.scss';
 import { Link, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -19,18 +19,6 @@ const Header: React.FC = () => {
     const unsubscribe = onAuthStateChanged(firebase.auth, (currentUser) => {
       setUser(currentUser);
       setImageLoadError(false); // Reset image error when user changes
-      
-      // Debug log
-      if (currentUser) {
-        console.log('User photo URL originale:', currentUser.photoURL);
-        console.log('User display name:', currentUser.displayName);
-        
-        // Modifica l'URL per forzare una dimensione più piccola
-        if (currentUser.photoURL) {
-          const modifiedUrl = currentUser.photoURL.replace(/=s\d+-c$/, '=s40-c');
-          console.log('User photo URL modificato:', modifiedUrl);
-        }
-      }
     });
 
     return () => unsubscribe();
@@ -70,7 +58,6 @@ const Header: React.FC = () => {
   const handleLogout = async () => {
     try {
       await signOut(firebase.auth);
-      console.log('Logout effettuato con successo');
       navigate('/');
     } catch (error) {
       console.error('Errore durante il logout:', error);
@@ -104,18 +91,11 @@ const Header: React.FC = () => {
           <div className="profile-menu-container" ref={profileMenuRef}>
             <button className="profile-button" onClick={toggleProfileMenu}>
               {user.photoURL && !imageLoadError ? (
-                <img 
+                <img
                   src={getProcessedImageUrl(user.photoURL) || ''}
-                  alt="Profile" 
+                  alt="Profile"
                   className="profile-image"
-                  onError={(e) => {
-                    console.log('Errore caricamento immagine:', e);
-                    console.log('URL che ha causato errore:', getProcessedImageUrl(user.photoURL));
-                    setImageLoadError(true);
-                  }}
-                  onLoad={() => {
-                    console.log('Immagine caricata con successo');
-                  }}
+                  onError={() => setImageLoadError(true)}
                 />
               ) : (
                 <div className="profile-avatar-fallback">

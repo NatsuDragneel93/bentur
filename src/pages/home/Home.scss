@@ -28,27 +28,23 @@
 .custom-card {
     width: 100%;
     height: 150px;
-    background-color: #222222 !important;
-    color: white !important; 
+    padding: 16px;
+    border: none;
+    background-color: #222222;
+    color: white;
+    font-family: inherit;
     display: flex;
     align-items: center; /* Centra verticalmente */
     justify-content: center; /* Centra orizzontalmente */
     cursor: pointer;
-    border-radius: 16px !important; /* Arrotonda gli angoli */
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2) !important; /* Aggiunge un'ombra */
-    transition: transform 0.2s, box-shadow 0.2s !important;
+    border-radius: 16px; /* Arrotonda gli angoli */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2); /* Aggiunge un'ombra */
+    transition: transform 0.2s, box-shadow 0.2s;
 
     &:hover {
-        transform: translateY(-5px) !important; /* Solleva la card al passaggio del mouse */
-        box-shadow: 0 6px 10px rgba(0, 0, 0, 0.3) !important; /* Aumenta l'ombra */
+        transform: translateY(-5px); /* Solleva la card al passaggio del mouse */
+        box-shadow: 0 6px 10px rgba(0, 0, 0, 0.3); /* Aumenta l'ombra */
     }
-}
-
-.custom-card-content {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
 }
 
 .custom-card-title {
