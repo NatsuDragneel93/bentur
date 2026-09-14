@@ -26,13 +26,15 @@ Per ora solo online; la gestione offline è prevista in futuro (tenerne conto ne
 - `src/context/ToastProvider.tsx` + `useToast()` — notifiche (`showError`, `showSuccess`, `showToast`); non usare `alert()`
 - `src/components/ProtectedRoute.tsx` — redirect a `/` se non loggato; `Header.tsx` — nav + menu profilo/logout
 - `src/services/*.service.ts` — un servizio singleton per collection Firestore
+- `src/services/categoryList.service.ts` — `createCategoryListService<TItem>(collection, itemsField)`: servizio generico per le collection "categoria con array di elementi"; ogni modifica agli elementi usa `runTransaction`. Logica pura sugli array in `src/utils/categoryItems.ts`
+- `src/components/category-list/` — `CategoryListPage` generica (categorie a fisarmonica, ricerca, drag & drop, aggiornamenti ottimistici) + tipi di elemento in `itemTypes.tsx` (`checklistItemType`, `inventoryItemType`). To Do Personal, To Buy e Inventory Personal sono solo configurazione (servizio + tipo + testi)
 - `src/pages/<sezione>/` — componente + SCSS; le pagine non usano Firebase Auth direttamente
 
 ## Modello dati Firestore
 | Collection | Scope | Forma |
 |---|---|---|
 | `user_todos_personal` | per utente (`userId`) | categoria `{title, todos: [{id,text,completed,order}]}` |
-| `user_todos_tour` | per utente | come sopra (servizio pronto, pagina non implementata) |
+| `user_todos_tour` | per utente | come sopra (servizio pronto, pagina non implementata: basta configurare `CategoryListPage`) |
 | `user_to_buy` | per utente | categoria `{title, tobuys: [...]}` |
 | `user_inventory_personal` | per utente | categoria `{title, data: [{id,name,number,order}]}` |
 | `manuals` | per utente | `{title, link}` |
@@ -40,11 +42,11 @@ Per ora solo online; la gestione offline è prevista in futuro (tenerne conto ne
 | `tours` | **globale** (nessun userId) | `{name, stagePlot, channelList}` (URL) |
 | `tour_artists` | per `tourId` | `{tourId, name, role}` |
 
-Gli item delle liste sono array dentro il documento categoria: ogni modifica fa read → modify → write dell'intero array.
+Gli item delle liste sono array dentro il documento categoria. Offline non richiesto: le modifiche agli array passano da transazioni Firestore (niente migrazione a subcollection). Nomi dei campi array diversi per collection (`todos`, `tobuys`, `data`): non rinominarli, i dati esistenti li usano.
 
 ## Convenzioni
 - Test accanto al file testato (`*.test.ts(x)`). `src/test/setup.ts` mocka sempre `firebase.service`; i test di servizi mockano `firebase/firestore`, i test di pagine mockano il servizio. Usare `renderWithAuth` (`src/test/renderWithAuth.tsx`) per pagine che richiedono utente/router
 - Logica pura (filtri, normalizzazioni) in `src/utils/` con test dedicati
 - Testi UI e commenti in italiano (titoli sezioni in inglese)
 - Usare i componenti di `src/components/ui/` per modali, conferme, caricamento e pulsante "+"; errori all'utente via `useToast().showError`
-- Gli SCSS delle pagine sono GLOBALI (nessun CSS module): classi generiche come `.modal`, `.save-button`, `.confirm-button` definite in più file collidono e vince l'ultimo importato. To Do Personal, To Buy e Inventory usano ancora le vecchie modali inline con queste classi (da migrare nella fase 6); non rimuovere le regole `.modal` finché non sono migrate
+- Gli SCSS delle pagine sono GLOBALI (nessun CSS module): classi generiche come `.modal`, `.save-button`, `.confirm-button` definite in più file collidono e vince l'ultimo importato. Nei nuovi stili usare un prefisso dedicato (`bt-` per ui, `cl-` per category-list) o classi specifiche della pagina
