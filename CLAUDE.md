@@ -9,13 +9,14 @@ Per ora solo online; la gestione offline è prevista in futuro (tenerne conto ne
 - Firebase 11: Auth (solo Google popup) + Firestore. Config in `src/environment/firebaseConfig.ts`
 - Hosting: Firebase Hosting (progetto `bentur-c5eaa`, cartella `dist`, rewrite SPA)
 - UI: FontAwesome per le icone, `@hello-pangea/dnd` per drag & drop; nessuna libreria di componenti (MUI rimosso)
-- Nessun test. Regole Firestore in `firestore.rules` (deploy: `firebase deploy --only firestore:rules`, lo fa l'utente)
+- Test: Vitest + React Testing Library (jsdom). Regole Firestore in `firestore.rules` (deploy: `firebase deploy --only firestore:rules`, lo fa l'utente)
 - Git: non fare mai commit/push/branch, l'utente committa da sé
 
 ## Comandi
 - `npm run dev` — dev server
 - `npm run build` — `tsc -b && vite build`
 - `npm run lint` — ESLint
+- `npm test` — Vitest in watch; `npm run test:run` — esecuzione singola
 - Deploy: `npm run build` poi `firebase deploy`
 
 ## Struttura
@@ -40,5 +41,7 @@ Per ora solo online; la gestione offline è prevista in futuro (tenerne conto ne
 Gli item delle liste sono array dentro il documento categoria: ogni modifica fa read → modify → write dell'intero array.
 
 ## Convenzioni
+- Test accanto al file testato (`*.test.ts(x)`). `src/test/setup.ts` mocka sempre `firebase.service`; i test di servizi mockano `firebase/firestore`, i test di pagine mockano il servizio. Usare `renderWithAuth` (`src/test/renderWithAuth.tsx`) per pagine che richiedono utente/router
+- Logica pura (filtri, normalizzazioni) in `src/utils/` con test dedicati
 - Testi UI e commenti in italiano (titoli sezioni in inglese)
 - Modali, loading e conferme di eliminazione sono reimplementati inline in ogni pagina (nessun componente condiviso)

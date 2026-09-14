@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faFilter, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useRequiredUser } from '../../hooks/useAuth';
 import usefulContactsService, { Contact } from '../../services/usefulContacts.service';
+import { filterContacts, getUniqueCities } from '../../utils/contacts';
 
 const UsefulContacts: React.FC = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -126,33 +127,8 @@ const UsefulContacts: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const filteredContacts = contacts
-  .filter((contact) => {
-    const categoryMatch = filters.category === '' || contact.category === filters.category;
-    const cityMatch = filters.city === '' || 
-      (contact.city.charAt(0).toUpperCase() + contact.city.slice(1).toLowerCase()) === filters.city;
-    
-    return categoryMatch && cityMatch;
-  })
-  .filter((contact) => {
-    return contact.name.toLowerCase().includes(searchTerm.toLowerCase());
-  });
-
-  // Funzione per estrarre le città uniche dai contatti
-  const getUniqueCities = (): string[] => {
-    const cities = contacts
-      .map(contact => contact.city.trim()) // Rimuove spazi
-      .filter(city => city !== '') // Rimuove città vuote
-      .map(city => 
-        // Capitalizza la prima lettera e minuscole per il resto
-        city.charAt(0).toUpperCase() + city.slice(1).toLowerCase()
-      );
-    
-    // Rimuove duplicati e ordina alfabeticamente
-    return [...new Set(cities)].sort();
-  };
-
-  const uniqueCities = getUniqueCities();
+  const filteredContacts = filterContacts(contacts, filters, searchTerm);
+  const uniqueCities = getUniqueCities(contacts);
 
   const handleFilterChange = (field: string, value: string) => {
     setFilters((prevFilters) => ({

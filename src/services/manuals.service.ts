@@ -10,6 +10,7 @@ import {
   Timestamp 
 } from 'firebase/firestore';
 import FirebaseService from './firebase.service';
+import { ensureProtocol } from '../utils/url';
 
 export interface Manual {
   id?: string;
@@ -44,10 +45,7 @@ class ManualsService {
 
   async addManual(userId: string, manualData: Omit<Manual, 'id' | 'userId' | 'createdAt' | 'updatedAt'>): Promise<string> {
     try {
-      // Aggiungi protocollo se mancante
-      const processedLink = manualData.link.startsWith('http://') || manualData.link.startsWith('https://')
-        ? manualData.link
-        : `https://${manualData.link}`;
+      const processedLink = ensureProtocol(manualData.link);
 
       const manual: Omit<Manual, 'id'> = {
         ...manualData,
@@ -67,10 +65,7 @@ class ManualsService {
 
   async updateManual(manualId: string, manualData: Omit<Manual, 'id' | 'userId' | 'createdAt' | 'updatedAt'>): Promise<void> {
     try {
-      // Aggiungi protocollo se mancante
-      const processedLink = manualData.link.startsWith('http://') || manualData.link.startsWith('https://')
-        ? manualData.link
-        : `https://${manualData.link}`;
+      const processedLink = ensureProtocol(manualData.link);
 
       const manualRef = doc(this.db, this.collectionName, manualId);
       await updateDoc(manualRef, {

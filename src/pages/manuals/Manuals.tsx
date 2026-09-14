@@ -171,6 +171,7 @@ const Manuals: React.FC = () => {
         <button
           className="add-manual-floating-button"
           onClick={openAddManualModal}
+          aria-label="Aggiungi manuale"
         >
           <FontAwesomeIcon icon={faPlus} />
         </button>

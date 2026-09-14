@@ -15,6 +15,8 @@ Requisiti: Node.js 20+ e npm.
 npm install
 npm run dev      # avvia il dev server
 npm run lint     # controlla il codice
+npm test         # test in modalità watch
+npm run test:run # test, esecuzione singola
 npm run build    # typecheck + build di produzione in dist/
 ```
 
