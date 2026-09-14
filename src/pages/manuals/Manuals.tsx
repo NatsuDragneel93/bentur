@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import './Manuals.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrash, faEdit, faExternalLinkAlt } from '@fortawesome/free-solid-svg-icons';
@@ -17,6 +18,7 @@ const emptyForm: ManualForm = { title: '', link: '' };
 const Manuals: React.FC = () => {
   const user = useRequiredUser();
   const { showError } = useToast();
+  const { t } = useTranslation();
   const [manuals, setManuals] = useState<Manual[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -30,9 +32,9 @@ const Manuals: React.FC = () => {
       setManuals(await manualsService.getUserManuals(userId));
     } catch (error) {
       console.error('Errore nel caricamento dei manuali:', error);
-      showError('Errore nel caricamento dei manuali');
+      showError(t('manuals.loadError'));
     }
-  }, [showError]);
+  }, [showError, t]);
 
   useEffect(() => {
     loadUserManuals(user.uid).finally(() => setLoading(false));
@@ -63,7 +65,7 @@ const Manuals: React.FC = () => {
 
   const handleSave = async () => {
     if (!form.title.trim() || !form.link.trim()) {
-      showError('Titolo e link sono obbligatori');
+      showError(t('manuals.requiredFields'));
       return;
     }
 
@@ -77,7 +79,7 @@ const Manuals: React.FC = () => {
       closeModal();
     } catch (error) {
       console.error('Errore nel salvare il manuale:', error);
-      showError('Errore nel salvare il manuale');
+      showError(t('manuals.saveError'));
     }
   };
 
@@ -90,7 +92,7 @@ const Manuals: React.FC = () => {
       setManualToDelete(null);
     } catch (error) {
       console.error('Errore nell\'eliminazione del manuale:', error);
-      showError('Errore nell\'eliminazione del manuale');
+      showError(t('manuals.deleteError'));
     }
   };
 
@@ -101,7 +103,7 @@ const Manuals: React.FC = () => {
   if (loading) {
     return (
       <div className="manuals-page-container">
-        <LoadingState message="Caricamento manuali..." />
+        <LoadingState message={t('manuals.loading')} />
       </div>
     );
   }
@@ -109,11 +111,11 @@ const Manuals: React.FC = () => {
   return (
     <div className="manuals-page-container">
       <div className="manuals-container">
-        <h1>Manuals</h1>
+        <h1>{t('manuals.title')}</h1>
         <div className="search-bar">
           <input
             type="text"
-            placeholder="Cerca manuali..."
+            placeholder={t('manuals.search')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -132,41 +134,41 @@ const Manuals: React.FC = () => {
                   rel="noopener noreferrer"
                   className="open-button"
                 >
-                  <FontAwesomeIcon icon={faExternalLinkAlt} /> Apri
+                  <FontAwesomeIcon icon={faExternalLinkAlt} /> {t('common.open')}
                 </a>
                 <button className="edit-button" onClick={() => openEditModal(manual)}>
-                  <FontAwesomeIcon icon={faEdit} /> Modifica
+                  <FontAwesomeIcon icon={faEdit} /> {t('common.edit')}
                 </button>
                 <button className="delete-button" onClick={() => setManualToDelete(manual.id ?? null)}>
-                  <FontAwesomeIcon icon={faTrash} /> Elimina
+                  <FontAwesomeIcon icon={faTrash} /> {t('common.delete')}
                 </button>
               </div>
             </div>
           ))}
         </div>
-        <FloatingAddButton label="Aggiungi manuale" onClick={openAddModal} />
+        <FloatingAddButton label={t('manuals.add')} onClick={openAddModal} />
       </div>
 
       <FormModal
         open={isModalOpen}
-        title={editingId !== null ? 'Modifica Manuale' : 'Aggiungi Manuale'}
-        submitLabel={editingId !== null ? 'Salva Modifiche' : 'Aggiungi'}
+        title={t(editingId !== null ? 'manuals.editTitle' : 'manuals.addTitle')}
+        submitLabel={t(editingId !== null ? 'common.saveChanges' : 'common.add')}
         onSubmit={handleSave}
         onClose={closeModal}
       >
         <label>
-          Titolo:
+          {t('manuals.titleField')}
           <input type="text" name="title" value={form.title} onChange={handleInputChange} autoFocus />
         </label>
         <label>
-          Link:
+          {t('manuals.linkField')}
           <input type="text" name="link" value={form.link} onChange={handleInputChange} />
         </label>
       </FormModal>
 
       <ConfirmDialog
         open={manualToDelete !== null}
-        message="Sei sicuro di voler cancellare il manuale?"
+        message={t('manuals.deleteConfirm')}
         onConfirm={handleDelete}
         onCancel={() => setManualToDelete(null)}
       />

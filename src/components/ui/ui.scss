@@ -212,3 +212,36 @@ $bt-grey-hover: #444444;
     cursor: pointer;
   }
 }
+
+// Selettore lingua
+.bt-language {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid #555555;
+  border-radius: 6px;
+
+  &__option {
+    padding: 4px 10px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: #cccccc;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover {
+      border-color: transparent;
+      background-color: #333333;
+    }
+
+    &--active {
+      background-color: #004d25;
+      color: white;
+
+      &:hover {
+        background-color: #004d25;
+      }
+    }
+  }
+}

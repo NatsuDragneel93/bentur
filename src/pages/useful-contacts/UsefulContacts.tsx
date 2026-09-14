@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import './UsefulContacts.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faFilter, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useRequiredUser } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import usefulContactsService, { Contact } from '../../services/usefulContacts.service';
-import { CONTACT_CATEGORIES, ContactFilters, filterContacts, getUniqueCities } from '../../utils/contacts';
+import { CONTACT_CATEGORIES, ContactFilters, filterContacts, getCategoryLabelKey, getUniqueCities } from '../../utils/contacts';
 import FormModal from '../../components/ui/FormModal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import LoadingState from '../../components/ui/LoadingState';
@@ -19,6 +20,7 @@ const emptyFilters: ContactFilters = { category: '', city: '' };
 const UsefulContacts: React.FC = () => {
   const user = useRequiredUser();
   const { showError } = useToast();
+  const { t } = useTranslation();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,9 +37,9 @@ const UsefulContacts: React.FC = () => {
       setContacts(await usefulContactsService.getUserContacts(userId));
     } catch (error) {
       console.error('Errore nel caricamento dei contatti:', error);
-      showError('Errore nel caricamento dei contatti');
+      showError(t('contacts.loadError'));
     }
-  }, [showError]);
+  }, [showError, t]);
 
   useEffect(() => {
     loadUserContacts(user.uid).finally(() => setLoading(false));
@@ -82,7 +84,7 @@ const UsefulContacts: React.FC = () => {
 
   const handleSave = async () => {
     if (!form.name.trim() || !form.category) {
-      showError('Nome e categoria sono obbligatori');
+      showError(t('contacts.requiredFields'));
       return;
     }
 
@@ -96,7 +98,7 @@ const UsefulContacts: React.FC = () => {
       closeModal();
     } catch (error) {
       console.error('Errore nel salvare il contatto:', error);
-      showError('Errore nel salvare il contatto');
+      showError(t('contacts.saveError'));
     }
   };
 
@@ -109,12 +111,18 @@ const UsefulContacts: React.FC = () => {
       setContactToDelete(null);
     } catch (error) {
       console.error('Errore nell\'eliminazione del contatto:', error);
-      showError('Errore nell\'eliminazione del contatto');
+      showError(t('contacts.deleteError'));
     }
   };
 
   const handleFilterChange = (field: keyof ContactFilters, value: string) => {
     setFilters(current => ({ ...current, [field]: value }));
+  };
+
+  // Etichetta tradotta della categoria; valori sconosciuti mostrati così come sono salvati
+  const categoryLabel = (value: string) => {
+    const labelKey = getCategoryLabelKey(value);
+    return labelKey ? t(labelKey) : value;
   };
 
   const filteredContacts = filterContacts(contacts, filters, searchTerm);
@@ -124,7 +132,7 @@ const UsefulContacts: React.FC = () => {
     <div className="search-bar">
       <input
         type="text"
-        placeholder="Cerca contatti..."
+        placeholder={t('contacts.search')}
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
       />
@@ -132,7 +140,7 @@ const UsefulContacts: React.FC = () => {
   );
 
   const filterToggle = (
-    <button className="filter-button" onClick={() => setShowFilters(!showFilters)} aria-label="Filtri">
+    <button className="filter-button" onClick={() => setShowFilters(!showFilters)} aria-label={t('contacts.filters')}>
       <FontAwesomeIcon icon={faFilter} />
     </button>
   );
@@ -144,11 +152,11 @@ const UsefulContacts: React.FC = () => {
           className="filter-select"
           value={filters.category}
           onChange={(e) => handleFilterChange('category', e.target.value)}
-          aria-label="Filtra per categoria"
+          aria-label={t('contacts.filterByCategory')}
         >
-          <option value="" disabled>Seleziona categoria</option>
+          <option value="" disabled>{t('contacts.selectCategory')}</option>
           {CONTACT_CATEGORIES.map(category => (
-            <option key={category} value={category}>{category}</option>
+            <option key={category.value} value={category.value}>{t(category.labelKey)}</option>
           ))}
         </select>
       </div>
@@ -157,9 +165,9 @@ const UsefulContacts: React.FC = () => {
           className="filter-select"
           value={filters.city}
           onChange={(e) => handleFilterChange('city', e.target.value)}
-          aria-label="Filtra per città"
+          aria-label={t('contacts.filterByCity')}
         >
-          <option value="" disabled>Seleziona città</option>
+          <option value="" disabled>{t('contacts.selectCity')}</option>
           {uniqueCities.map(city => (
             <option key={city} value={city}>{city}</option>
           ))}
@@ -169,7 +177,7 @@ const UsefulContacts: React.FC = () => {
         <button
           className="reset-filters-button"
           onClick={() => setFilters(emptyFilters)}
-          aria-label="Azzera filtri"
+          aria-label={t('contacts.resetFilters')}
         >
           <FontAwesomeIcon icon={faTrash} />
         </button>
@@ -180,7 +188,7 @@ const UsefulContacts: React.FC = () => {
   if (loading) {
     return (
       <div className="useful-contacts-page-container">
-        <LoadingState message="Caricamento contatti..." />
+        <LoadingState message={t('contacts.loading')} />
       </div>
     );
   }
@@ -188,7 +196,7 @@ const UsefulContacts: React.FC = () => {
   return (
     <div className="useful-contacts-page-container">
       <div className="contacts-container">
-        <h1>Your Contacts</h1>
+        <h1>{t('contacts.title')}</h1>
 
         {isMobile ? (
           <div className="header-container mobile">
@@ -214,19 +222,19 @@ const UsefulContacts: React.FC = () => {
           {filteredContacts.map((contact) => (
             <div key={contact.id} className="contact-card">
               <h3>{contact.name}</h3>
-              <div className="card-row"><strong>Categoria:</strong> {contact.category}</div>
-              <div className="card-row"><strong>Telefono:</strong> {contact.phone}</div>
-              <div className="card-row"><strong>Email:</strong> {contact.email}</div>
-              <div className="card-row"><strong>Città:</strong> {contact.city}</div>
-              <div className="card-row"><strong>Note:</strong> {contact.notes}</div>
+              <div className="card-row"><strong>{t('contacts.categoryField')}</strong> {categoryLabel(contact.category)}</div>
+              <div className="card-row"><strong>{t('contacts.phoneField')}</strong> {contact.phone}</div>
+              <div className="card-row"><strong>{t('contacts.emailField')}</strong> {contact.email}</div>
+              <div className="card-row"><strong>{t('contacts.cityField')}</strong> {contact.city}</div>
+              <div className="card-row"><strong>{t('contacts.notesField')}</strong> {contact.notes}</div>
               <div className="card-actions">
                 <button className="edit-button" onClick={() => openEditModal(contact)}>
-                  <FontAwesomeIcon icon={faEdit} /> Modifica
+                  <FontAwesomeIcon icon={faEdit} /> {t('common.edit')}
                 </button>
                 <button
                   className="delete-button"
                   onClick={() => setContactToDelete(contact.id ?? null)}
-                  aria-label={`Elimina ${contact.name}`}
+                  aria-label={t('contacts.deleteLabel', { name: contact.name })}
                 >
                   <FontAwesomeIcon icon={faTrash} />
                 </button>
@@ -235,50 +243,50 @@ const UsefulContacts: React.FC = () => {
           ))}
         </div>
 
-        <FloatingAddButton label="Aggiungi contatto" onClick={openAddModal} />
+        <FloatingAddButton label={t('contacts.add')} onClick={openAddModal} />
       </div>
 
       <FormModal
         open={isModalOpen}
-        title={editingId !== null ? 'Modifica Contatto' : 'Aggiungi Nuovo Contatto'}
-        submitLabel={editingId !== null ? 'Salva Modifiche' : 'Salva'}
+        title={t(editingId !== null ? 'contacts.editTitle' : 'contacts.addTitle')}
+        submitLabel={t(editingId !== null ? 'common.saveChanges' : 'common.save')}
         onSubmit={handleSave}
         onClose={closeModal}
       >
         <label>
-          Nome:
+          {t('contacts.nameField')}
           <input type="text" name="name" value={form.name} onChange={handleInputChange} autoFocus />
         </label>
         <label>
-          Categoria:
+          {t('contacts.categoryField')}
           <select name="category" value={form.category} onChange={handleInputChange}>
-            <option value="">Seleziona una categoria</option>
+            <option value="">{t('contacts.categoryPlaceholder')}</option>
             {CONTACT_CATEGORIES.map(category => (
-              <option key={category} value={category}>{category}</option>
+              <option key={category.value} value={category.value}>{t(category.labelKey)}</option>
             ))}
           </select>
         </label>
         <label>
-          Telefono:
+          {t('contacts.phoneField')}
           <input type="tel" name="phone" value={form.phone} onChange={handleInputChange} />
         </label>
         <label>
-          Email:
+          {t('contacts.emailField')}
           <input type="email" name="email" value={form.email} onChange={handleInputChange} />
         </label>
         <label>
-          Città:
+          {t('contacts.cityField')}
           <input type="text" name="city" value={form.city} onChange={handleInputChange} />
         </label>
         <label>
-          Note:
+          {t('contacts.notesField')}
           <textarea name="notes" value={form.notes} onChange={handleInputChange} />
         </label>
       </FormModal>
 
       <ConfirmDialog
         open={contactToDelete !== null}
-        message="Sicuro di voler cancellare il contatto?"
+        message={t('contacts.deleteConfirm')}
         onConfirm={handleDelete}
         onCancel={() => setContactToDelete(null)}
       />

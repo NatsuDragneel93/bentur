@@ -1,17 +1,28 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import './ArtistDetail.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faArrowLeft, 
-  faCog, 
-  faTools, 
-  faClipboardList, 
-  faBoxes, 
-  faCheckCircle 
+import {
+  faArrowLeft,
+  faCog,
+  faTools,
+  faClipboardList,
+  faBoxes,
+  faCheckCircle
 } from '@fortawesome/free-solid-svg-icons';
 import tourArtistsService, { TourArtist } from '../../../services/tourArtists.service';
 import { useToast } from '../../../hooks/useToast';
 import LoadingState from '../../../components/ui/LoadingState';
+
+// className mantiene i colori delle card definiti in ArtistDetail.scss
+const SECTIONS = [
+  { key: 'setupA', className: 'setup-a', icon: faCog },
+  { key: 'setupB', className: 'setup-b', icon: faCog },
+  { key: 'spare', className: 'spare', icon: faTools },
+  { key: 'toDo', className: 'todo', icon: faClipboardList },
+  { key: 'consumables', className: 'consumabili', icon: faBoxes },
+  { key: 'checkBeforeShow', className: 'check-before', icon: faCheckCircle },
+] as const;
 
 interface ArtistDetailProps {
   tourId: string;
@@ -23,6 +34,7 @@ const ArtistDetail: React.FC<ArtistDetailProps> = ({ tourId, artistId, onBack })
   const [artist, setArtist] = useState<TourArtist | null>(null);
   const [loading, setLoading] = useState(true);
   const { showError, showToast } = useToast();
+  const { t } = useTranslation();
 
   useEffect(() => {
     const loadArtistData = async () => {
@@ -32,13 +44,13 @@ const ArtistDetail: React.FC<ArtistDetailProps> = ({ tourId, artistId, onBack })
         setArtist(currentArtist?.tourId === tourId ? currentArtist : null);
       } catch (error) {
         console.error('Error loading artist data:', error);
-        showError("Errore nel caricamento dell'artista");
+        showError(t('artistDetail.loadError'));
       }
     };
 
     setLoading(true);
     loadArtistData().finally(() => setLoading(false));
-  }, [tourId, artistId, showError]);
+  }, [tourId, artistId, showError, t]);
 
   if (loading) {
     return (
@@ -49,107 +61,39 @@ const ArtistDetail: React.FC<ArtistDetailProps> = ({ tourId, artistId, onBack })
   }
 
   if (!artist) {
-    return <div className="error">Artista non trovato</div>;
+    return <div className="error">{t('artistDetail.notFound')}</div>;
   }
-
-  // TODO: navigazione alle singole sezioni, non ancora implementate
-  const handleSectionClick = () => {
-    showToast('Sezione in arrivo');
-  };
 
   return (
     <div className="artist-detail-container">
       <div className="artist-detail-content">
-        {/* Header */}
         <div className="artist-detail-header">
           <button className="back-button" onClick={onBack}>
             <FontAwesomeIcon icon={faArrowLeft} />
-            Torna al Tour
+            {t('artistDetail.back')}
           </button>
-          
+
           <h1>{artist.name}</h1>
           <p className="artist-role-display">{artist.role}</p>
         </div>
 
-        {/* Sections Grid */}
         <div className="artist-sections-grid">
-          <div 
-            className="artist-section-card setup-a" 
-            onClick={() => handleSectionClick()}
-          >
-            <div className="section-icon">
-              <FontAwesomeIcon icon={faCog} />
+          {SECTIONS.map(section => (
+            <div
+              key={section.key}
+              className={`artist-section-card ${section.className}`}
+              // TODO: navigazione alle singole sezioni, non ancora implementate
+              onClick={() => showToast(t('artistDetail.sectionComingSoon'))}
+            >
+              <div className="section-icon">
+                <FontAwesomeIcon icon={section.icon} />
+              </div>
+              <div className="section-info">
+                <h3>{t(`artistDetail.sections.${section.key}.title`)}</h3>
+                <p>{t(`artistDetail.sections.${section.key}.description`)}</p>
+              </div>
             </div>
-            <div className="section-info">
-              <h3>Setup A</h3>
-              <p>Schema grafico principale</p>
-            </div>
-          </div>
-
-          <div 
-            className="artist-section-card setup-b" 
-            onClick={() => handleSectionClick()}
-          >
-            <div className="section-icon">
-              <FontAwesomeIcon icon={faCog} />
-            </div>
-            <div className="section-info">
-              <h3>Setup B</h3>
-              <p>Schema grafico alternativo</p>
-            </div>
-          </div>
-
-          <div 
-            className="artist-section-card spare" 
-            onClick={() => handleSectionClick()}
-          >
-            <div className="section-icon">
-              <FontAwesomeIcon icon={faTools} />
-            </div>
-            <div className="section-info">
-              <h3>Spare</h3>
-              <p>Pezzi di ricambio</p>
-            </div>
-          </div>
-
-          <div 
-            className="artist-section-card todo" 
-            onClick={() => handleSectionClick()}
-          >
-            <div className="section-icon">
-              <FontAwesomeIcon icon={faClipboardList} />
-            </div>
-            <div className="section-info">
-              <h3>To Do</h3>
-              <p>Lista delle cose da fare</p>
-            </div>
-          </div>
-
-          <div 
-            className="artist-section-card consumabili" 
-            onClick={() => handleSectionClick()}
-          >
-            <div className="section-icon">
-              <FontAwesomeIcon icon={faBoxes} />
-            </div>
-            <div className="section-info">
-              <h3>Consumabili</h3>
-              <p>Materiali consumabili</p>
-            </div>
-          </div>
-
-          <div 
-            className="artist-section-card check-before" 
-            onClick={() => handleSectionClick()}
-          >
-            <div className="section-icon">
-              <FontAwesomeIcon icon={faCheckCircle} />
-            </div>
-            <div className="section-info">
-              <h3>To Check Before Showtime</h3>
-              <p>Controlli pre-spettacolo</p>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>

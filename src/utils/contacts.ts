@@ -1,11 +1,16 @@
 import type { Contact } from '../services/usefulContacts.service';
 
+// `value` è ciò che viene salvato su Firestore (non cambiarlo: i contatti esistenti lo usano),
+// `labelKey` è la chiave di traduzione mostrata all'utente
 export const CONTACT_CATEGORIES = [
-  'Negozio strumenti',
-  'Service',
-  'Tecnico/riparatore',
-  'Utility',
+  { value: 'Negozio strumenti', labelKey: 'contacts.categories.instrumentStore' },
+  { value: 'Service', labelKey: 'contacts.categories.service' },
+  { value: 'Tecnico/riparatore', labelKey: 'contacts.categories.technician' },
+  { value: 'Utility', labelKey: 'contacts.categories.utility' },
 ] as const;
+
+export const getCategoryLabelKey = (value: string) =>
+  CONTACT_CATEGORIES.find(category => category.value === value)?.labelKey;
 
 export interface ContactFilters {
   category: string;

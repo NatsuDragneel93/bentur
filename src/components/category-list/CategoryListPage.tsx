@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DragDropContext, Draggable, Droppable, DropResult } from '@hello-pangea/dnd';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faEdit, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
@@ -29,6 +30,7 @@ interface ItemRef {
 function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, labels }: CategoryListPageProps<TItem, TForm>) {
   const user = useRequiredUser();
   const { showError } = useToast();
+  const { t } = useTranslation();
   const [categories, setCategories] = useState<ItemCategory<TItem>[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -49,9 +51,9 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
       setCategories(await service.getUserCategories(user.uid));
     } catch (error) {
       console.error('Errore nel caricamento delle categorie:', error);
-      showError('Errore nel caricamento delle categorie');
+      showError(t('lists.loadError'));
     }
-  }, [service, user.uid, showError]);
+  }, [service, user.uid, showError, t]);
 
   useEffect(() => {
     loadCategories().finally(() => setLoading(false));
@@ -120,7 +122,7 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
 
     const title = categoryTitle.trim();
     if (!title) {
-      showError('Il nome della categoria è obbligatorio');
+      showError(t('lists.categoryNameRequired'));
       return;
     }
 
@@ -137,7 +139,7 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
       setCategoryModal(null);
     } catch (error) {
       console.error('Errore nel salvare la categoria:', error);
-      showError('Errore nel salvare la categoria');
+      showError(t('lists.saveCategoryError'));
     }
   };
 
@@ -150,7 +152,7 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
       setCategoryToDelete(null);
     } catch (error) {
       console.error('Errore nell\'eliminazione della categoria:', error);
-      showError('Errore nell\'eliminazione della categoria');
+      showError(t('lists.deleteCategoryError'));
     }
   };
 
@@ -166,7 +168,7 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
 
     const validationError = itemType.validate(itemForm);
     if (validationError) {
-      showError(validationError);
+      showError(t(validationError));
       return;
     }
 
@@ -175,7 +177,7 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
     const saved = await changeItems(
       categoryId,
       () => (item ? service.updateItem(categoryId, item.id, data) : service.addItem(categoryId, data)),
-      'Errore nel salvare l\'elemento'
+      t('lists.saveItemError')
     );
     if (saved) setItemModal(null);
   };
@@ -184,7 +186,7 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
     changeItems(
       categoryId,
       () => service.updateItem(categoryId, itemId, updates),
-      'Errore nell\'aggiornamento dell\'elemento',
+      t('lists.updateItemError'),
       items => updateItemById(items, itemId, updates)
     );
   };
@@ -196,7 +198,7 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
     const deleted = await changeItems(
       categoryId,
       () => service.deleteItem(categoryId, itemId),
-      'Errore nell\'eliminazione dell\'elemento'
+      t('lists.deleteItemError')
     );
     if (deleted) setItemToDelete(null);
   };
@@ -212,7 +214,7 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
     changeItems(
       categoryId,
       () => service.moveItem(categoryId, itemId, destination.index),
-      'Errore nel riordinare gli elementi',
+      t('lists.reorderError'),
       items => moveItemById(items, itemId, destination.index)
     );
   };
@@ -236,8 +238,8 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
         <div className="cl-search">
           <input
             type="text"
-            placeholder="Cerca categoria..."
-            aria-label="Cerca categoria"
+            placeholder={t('lists.searchCategory')}
+            aria-label={t('lists.searchCategory')}
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
@@ -265,8 +267,8 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
                         type="button"
                         className="cl-icon-button"
                         onClick={() => openCategoryModal(category)}
-                        title="Modifica categoria"
-                        aria-label={`Modifica categoria ${category.title}`}
+                        title={t('lists.editCategoryTitle')}
+                        aria-label={t('lists.editCategoryLabel', { title: category.title })}
                       >
                         <FontAwesomeIcon icon={faEdit} />
                       </button>
@@ -274,8 +276,8 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
                         type="button"
                         className="cl-icon-button cl-icon-button--danger"
                         onClick={() => setCategoryToDelete(category)}
-                        title="Elimina categoria"
-                        aria-label={`Elimina categoria ${category.title}`}
+                        title={t('common.delete')}
+                        aria-label={t('lists.deleteCategoryLabel', { title: category.title })}
                       >
                         <FontAwesomeIcon icon={faTrash} />
                       </button>
@@ -317,8 +319,8 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
                                         type="button"
                                         className="cl-icon-button cl-icon-button--danger"
                                         onClick={() => setItemToDelete({ categoryId: category.id, itemId: item.id })}
-                                        title="Elimina"
-                                        aria-label="Elimina"
+                                        title={t('common.delete')}
+                                        aria-label={t('common.delete')}
                                       >
                                         <FontAwesomeIcon icon={faTrash} />
                                       </button>
@@ -343,18 +345,18 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
           </ul>
         </DragDropContext>
 
-        <FloatingAddButton label="Aggiungi categoria" onClick={() => openCategoryModal(null)} />
+        <FloatingAddButton label={t('lists.addCategory')} onClick={() => openCategoryModal(null)} />
       </div>
 
       <FormModal
         open={categoryModal !== null}
-        title={categoryModal?.category ? 'Modifica Categoria' : 'Aggiungi Categoria'}
-        submitLabel={categoryModal?.category ? 'Salva' : 'Aggiungi'}
+        title={t(categoryModal?.category ? 'lists.editCategoryTitle' : 'lists.addCategoryTitle')}
+        submitLabel={t(categoryModal?.category ? 'common.save' : 'common.add')}
         onSubmit={handleSaveCategory}
         onClose={() => setCategoryModal(null)}
       >
         <label>
-          Nome categoria:
+          {t('lists.categoryName')}
           <input type="text" value={categoryTitle} onChange={e => setCategoryTitle(e.target.value)} autoFocus />
         </label>
       </FormModal>
@@ -362,7 +364,7 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
       <FormModal
         open={itemModal !== null}
         title={itemModal?.item ? labels.editItem : labels.addItem}
-        submitLabel={itemModal?.item ? 'Salva Modifiche' : 'Aggiungi'}
+        submitLabel={t(itemModal?.item ? 'common.saveChanges' : 'common.add')}
         onSubmit={handleSaveItem}
         onClose={() => setItemModal(null)}
       >
@@ -371,7 +373,7 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
 
       <ConfirmDialog
         open={categoryToDelete !== null}
-        message="Sei sicuro di voler cancellare la categoria?"
+        message={t('lists.deleteCategoryConfirm')}
         onConfirm={handleDeleteCategory}
         onCancel={() => setCategoryToDelete(null)}
       />

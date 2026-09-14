@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ToastContext, ToastContextValue, ToastType } from './toast.context';
 import '../components/ui/ui.scss';
 
@@ -12,6 +13,7 @@ const TOAST_DURATION_MS = 4000;
 
 // Notifiche temporanee in basso allo schermo, al posto di alert()
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { t } = useTranslation();
   const [toasts, setToasts] = useState<Toast[]>([]);
   const nextId = useRef(0);
   const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
@@ -50,7 +52,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             role={toast.type === 'error' ? 'alert' : 'status'}
           >
             <span>{toast.message}</span>
-            <button type="button" className="bt-toast__close" onClick={() => dismiss(toast.id)} aria-label="Chiudi notifica">
+            <button type="button" className="bt-toast__close" onClick={() => dismiss(toast.id)} aria-label={t('common.closeNotification')}>
               ×
             </button>
           </div>

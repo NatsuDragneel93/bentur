@@ -84,7 +84,7 @@ describe('CategoryListPage', () => {
     renderChecklist(service);
     await screen.findByRole('button', { name: 'Cavi' });
 
-    await userEvent.type(screen.getByLabelText('Cerca categoria'), 'pal');
+    await userEvent.type(screen.getByLabelText('Cerca categoria...'), 'pal');
 
     expect(screen.queryByRole('button', { name: 'Cavi' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Palco' })).toBeInTheDocument();

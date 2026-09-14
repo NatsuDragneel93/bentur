@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import Modal from './Modal';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 
@@ -17,11 +18,12 @@ const FormModal: React.FC<FormModalProps> = ({
   open,
   title,
   submitLabel,
-  cancelLabel = 'Annulla',
+  cancelLabel,
   onSubmit,
   onClose,
   children,
 }) => {
+  const { t } = useTranslation();
   const { pending, run } = useAsyncAction();
 
   return (
@@ -36,10 +38,10 @@ const FormModal: React.FC<FormModalProps> = ({
         {children}
         <div className="bt-modal__actions">
           <button type="button" className="bt-button bt-button--secondary" onClick={onClose} disabled={pending}>
-            {cancelLabel}
+            {cancelLabel ?? t('common.cancel')}
           </button>
           <button type="submit" className="bt-button bt-button--primary" disabled={pending}>
-            {pending ? 'Salvataggio...' : submitLabel}
+            {pending ? t('common.saving') : submitLabel}
           </button>
         </div>
       </form>

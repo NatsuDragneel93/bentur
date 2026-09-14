@@ -1,15 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './Header.scss';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars, faTimes, faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../hooks/useAuth';
+import LanguageSwitcher from './LanguageSwitcher';
+
+const NAV_LINKS = [
+  { to: '/home', labelKey: 'nav.home' },
+  { to: '/tours', labelKey: 'nav.tours' },
+  { to: '/to-do', labelKey: 'nav.toDo' },
+  { to: '/to-buy', labelKey: 'nav.toBuy' },
+  { to: '/my-inventory', labelKey: 'nav.inventory' },
+  { to: '/manuals', labelKey: 'nav.manuals' },
+  { to: '/useful-contacts', labelKey: 'nav.contacts' },
+] as const;
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [imageLoadError, setImageLoadError] = useState(false);
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
@@ -57,32 +70,30 @@ const Header: React.FC = () => {
     <header className="header">
       <div className="header-container">
         <h1 className="header-title">Ben Tur</h1>
-        <button className="menu-toggle" onClick={toggleMenu}>
+        <button className="menu-toggle" onClick={toggleMenu} aria-label={t(isMenuOpen ? 'nav.closeMenu' : 'nav.openMenu')}>
           <FontAwesomeIcon icon={isMenuOpen ? faTimes : faBars} />
         </button>
         <nav className={`header-nav ${isMenuOpen ? 'open' : ''}`}>
           {isMenuOpen && (
-            <button className="close-menu" onClick={toggleMenu}>
+            <button className="close-menu" onClick={toggleMenu} aria-label={t('nav.closeMenu')}>
               <FontAwesomeIcon icon={faTimes} />
             </button>
           )}
-          <Link to="/home" className="header-link" onClick={() => setIsMenuOpen(false)}>Home</Link>
-          <Link to="/tours" className="header-link" onClick={() => setIsMenuOpen(false)}>Tours</Link>
-          <Link to="/to-do" className="header-link" onClick={() => setIsMenuOpen(false)}>To Do</Link>
-          <Link to="/to-buy" className="header-link" onClick={() => setIsMenuOpen(false)}>To Buy</Link>
-          <Link to="/my-inventory" className="header-link" onClick={() => setIsMenuOpen(false)}>My Inventory</Link>
-          <Link to="/manuals" className="header-link" onClick={() => setIsMenuOpen(false)}>Manuals</Link>
-          <Link to="/useful-contacts" className="header-link" onClick={() => setIsMenuOpen(false)}>Useful Contacts</Link>
+          {NAV_LINKS.map(link => (
+            <Link key={link.to} to={link.to} className="header-link" onClick={() => setIsMenuOpen(false)}>
+              {t(link.labelKey)}
+            </Link>
+          ))}
         </nav>
         
         {/* Profile Menu */}
         {user && (
           <div className="profile-menu-container" ref={profileMenuRef}>
-            <button className="profile-button" onClick={toggleProfileMenu}>
+            <button className="profile-button" onClick={toggleProfileMenu} aria-label={t('auth.profile')}>
               {user.photoURL && !imageLoadError ? (
                 <img
                   src={getProcessedImageUrl(user.photoURL) || ''}
-                  alt="Profile"
+                  alt={t('auth.profile')}
                   className="profile-image"
                   onError={() => setImageLoadError(true)}
                 />
@@ -95,13 +106,15 @@ const Header: React.FC = () => {
             {isProfileMenuOpen && (
               <div className="profile-dropdown">
                 <div className="profile-info">
-                  <span className="profile-name">{user.displayName || 'Utente'}</span>
+                  <span className="profile-name">{user.displayName || t('auth.defaultUserName')}</span>
                   <span className="profile-email">{user.email}</span>
                 </div>
                 <hr className="profile-divider" />
+                <LanguageSwitcher />
+                <hr className="profile-divider" />
                 <button className="logout-button" onClick={handleLogout}>
                   <FontAwesomeIcon icon={faSignOutAlt} />
-                  Logout
+                  {t('auth.logout')}
                 </button>
               </div>
             )}

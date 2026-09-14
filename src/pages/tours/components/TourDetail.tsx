@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import './TourDetail.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faTrash, faArrowLeft, faExternalLinkAlt } from '@fortawesome/free-solid-svg-icons';
@@ -18,6 +19,7 @@ interface TourDetailProps {
 
 const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }) => {
   const { showError, showToast } = useToast();
+  const { t } = useTranslation();
   const [tour, setTour] = useState<Tour | null>(null);
   const [artists, setArtists] = useState<TourArtist[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,9 +41,9 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
       setArtists(artistsData);
     } catch (error) {
       console.error('Error loading tour data:', error);
-      showError('Errore nel caricamento del tour');
+      showError(t('tourDetail.loadError'));
     }
-  }, [tourId, showError]);
+  }, [tourId, showError, t]);
 
   useEffect(() => {
     setLoading(true);
@@ -69,7 +71,7 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
 
   const handleSaveArtist = async () => {
     if (artistName.trim() === '' || artistRole.trim() === '') {
-      showError('Nome e ruolo sono obbligatori');
+      showError(t('tourDetail.artistRequired'));
       return;
     }
 
@@ -87,7 +89,7 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
       closeArtistModal();
     } catch (error) {
       console.error('Error adding/editing artist:', error);
-      showError('Errore nel salvare l\'artista');
+      showError(t('tourDetail.saveArtistError'));
     }
   };
 
@@ -100,7 +102,7 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
       setArtistToDelete(null);
     } catch (error) {
       console.error('Error deleting artist:', error);
-      showError('Errore nell\'eliminazione dell\'artista');
+      showError(t('tourDetail.deleteArtistError'));
     }
   };
 
@@ -122,7 +124,7 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
     return (
       <div className="tour-detail-container">
         <div style={{ textAlign: 'center', padding: '2rem' }}>
-          Tour non trovato
+          {t('tourDetail.notFound')}
         </div>
       </div>
     );
@@ -134,7 +136,7 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
         <div className="tour-detail-header">
           <button className="back-button" onClick={onBack}>
             <FontAwesomeIcon icon={faArrowLeft} />
-            Torna ai Tours
+            {t('tourDetail.back')}
           </button>
           <h1>{tour.name}</h1>
         </div>
@@ -144,26 +146,26 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
             {tour.stagePlot && (
               <button className="document-button" onClick={() => openExternalLink(tour.stagePlot!)}>
                 <FontAwesomeIcon icon={faExternalLinkAlt} />
-                Stage Plot
+                {t('tourDetail.stagePlot')}
               </button>
             )}
             {tour.channelList && (
               <button className="document-button" onClick={() => openExternalLink(tour.channelList!)}>
                 <FontAwesomeIcon icon={faExternalLinkAlt} />
-                Channel List
+                {t('tourDetail.channelList')}
               </button>
             )}
             <button
               className="document-button share-button"
-              onClick={() => showToast('Condivisione con la crew in arrivo')}
+              onClick={() => showToast(t('tourDetail.shareComingSoon'))}
             >
-              Share/Invite Crew
+              {t('tourDetail.shareCrew')}
             </button>
           </div>
         </div>
 
         <div className="artists-section">
-          <h2>Artists</h2>
+          <h2>{t('tourDetail.artists')}</h2>
           <ul className="artists-list">
             {artists.map(artist => (
               <li key={artist.id} className="artist-item">
@@ -180,8 +182,8 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
                       className="artist-edit-button"
                       type="button"
                       onClick={() => openEditArtistModal(artist)}
-                      title="Modifica artista"
-                      aria-label={`Modifica ${artist.name}`}
+                      title={t('tourDetail.editArtistTitle')}
+                      aria-label={t('tourDetail.editArtistLabel', { name: artist.name })}
                     >
                       <FontAwesomeIcon icon={faEdit} />
                     </button>
@@ -189,8 +191,8 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
                       className="artist-delete-button"
                       type="button"
                       onClick={() => setArtistToDelete(artist.id)}
-                      title="Elimina artista"
-                      aria-label={`Elimina ${artist.name}`}
+                      title={t('common.delete')}
+                      aria-label={t('tourDetail.deleteArtistLabel', { name: artist.name })}
                     >
                       <FontAwesomeIcon icon={faTrash} />
                     </button>
@@ -201,18 +203,18 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
           </ul>
         </div>
 
-        <FloatingAddButton label="Aggiungi artista" onClick={openAddArtistModal} />
+        <FloatingAddButton label={t('tourDetail.addArtist')} onClick={openAddArtistModal} />
       </div>
 
       <FormModal
         open={isArtistModalOpen}
-        title={artistToEdit ? 'Modifica Artista' : 'Aggiungi Artista'}
-        submitLabel={artistToEdit ? 'Salva Modifiche' : 'Aggiungi'}
+        title={t(artistToEdit ? 'tourDetail.editArtistTitle' : 'tourDetail.addArtistTitle')}
+        submitLabel={t(artistToEdit ? 'common.saveChanges' : 'common.add')}
         onSubmit={handleSaveArtist}
         onClose={closeArtistModal}
       >
         <label>
-          Nome Artista:
+          {t('tourDetail.artistNameField')}
           <input
             type="text"
             value={artistName}
@@ -221,19 +223,19 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
           />
         </label>
         <label>
-          Ruolo:
+          {t('tourDetail.roleField')}
           <input
             type="text"
             value={artistRole}
             onChange={e => setArtistRole(e.target.value)}
-            placeholder="Batterista, Chitarrista, Cantante..."
+            placeholder={t('tourDetail.rolePlaceholder')}
           />
         </label>
       </FormModal>
 
       <ConfirmDialog
         open={artistToDelete !== null}
-        message="Sei sicuro di voler eliminare questo artista?"
+        message={t('tourDetail.deleteArtistConfirm')}
         onConfirm={handleDeleteArtist}
         onCancel={() => setArtistToDelete(null)}
       />

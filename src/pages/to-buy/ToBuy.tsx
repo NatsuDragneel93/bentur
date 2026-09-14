@@ -1,20 +1,22 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import CategoryListPage from '../../components/category-list/CategoryListPage';
 import { checklistItemType } from '../../components/category-list/itemTypes';
 import toBuyService from '../../services/tobuy.service';
 
-const itemType = checklistItemType('Già comprato');
+const ToBuy: React.FC = () => {
+  const { t } = useTranslation();
+  const itemType = useMemo(() => checklistItemType(t('toBuy.completedLabel')), [t]);
 
-const labels = {
-  pageTitle: 'To Buy',
-  addItem: 'Aggiungi To Buy',
-  editItem: 'Modifica To Buy',
-  deleteItemConfirm: 'Sei sicuro di voler cancellare il to buy?',
-  emptyCategory: 'Nessun to buy presente',
+  const labels = {
+    pageTitle: t('toBuy.title'),
+    addItem: t('toBuy.addItem'),
+    editItem: t('toBuy.editItem'),
+    deleteItemConfirm: t('toBuy.deleteItemConfirm'),
+    emptyCategory: t('toBuy.emptyCategory'),
+  };
+
+  return <CategoryListPage service={toBuyService} itemType={itemType} labels={labels} />;
 };
-
-const ToBuy: React.FC = () => (
-  <CategoryListPage service={toBuyService} itemType={itemType} labels={labels} />
-);
 
 export default ToBuy;

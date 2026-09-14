@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Contact } from '../services/usefulContacts.service';
-import { filterContacts, getUniqueCities, normalizeCity } from './contacts';
+import { filterContacts, getCategoryLabelKey, getUniqueCities, normalizeCity } from './contacts';
 
 const contact = (overrides: Partial<Contact>): Contact => ({
   id: 'id',
@@ -57,5 +57,15 @@ describe('filterContacts', () => {
   it('combina filtri e ricerca', () => {
     const result = filterContacts(contacts, { category: 'Tecnico/riparatore', city: 'Genova' }, 'mario');
     expect(result.map(c => c.id)).toEqual(['3']);
+  });
+});
+
+describe('getCategoryLabelKey', () => {
+  it('restituisce la chiave di traduzione per le categorie salvate', () => {
+    expect(getCategoryLabelKey('Negozio strumenti')).toBe('contacts.categories.instrumentStore');
+  });
+
+  it('restituisce undefined per valori sconosciuti', () => {
+    expect(getCategoryLabelKey('Altro')).toBeUndefined();
   });
 });

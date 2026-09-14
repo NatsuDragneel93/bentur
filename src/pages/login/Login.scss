@@ -140,3 +140,12 @@ html, body, #root {
     min-width: 180px;
   }
 }
+
+.login-language {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+  background-color: rgba(0, 0, 0, 0.6);
+  border-radius: 6px;
+}

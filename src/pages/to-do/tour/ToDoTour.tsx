@@ -1,16 +1,16 @@
 import React from 'react';
 import './ToDoTour.scss';
+import { useTranslation } from 'react-i18next';
 
 const ToDoTour: React.FC = () => {
+  const { t } = useTranslation();
+
   return (
     <div className="todo-tour-page">
       <div className="todo-tour-container">
-        <h1>To Do - Tour</h1>
+        <h1>{t('toDoTour.title')}</h1>
         <div className="todo-tour-content">
-          <p>Sezione To Do per i tour in sviluppo...</p>
-          <p style={{ fontSize: '1rem', marginTop: '1rem', opacity: 0.7 }}>
-            Quando sarà implementato utilizzerà il servizio todoTourService con collezione 'user_todos_tour'
-          </p>
+          <p>{t('toDoTour.inProgress')}</p>
         </div>
       </div>
     </div>

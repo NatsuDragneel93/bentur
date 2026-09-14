@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import Modal from './Modal';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 
@@ -15,11 +16,12 @@ interface ConfirmDialogProps {
 const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   open,
   message,
-  confirmLabel = 'Sì',
-  cancelLabel = 'Annulla',
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   onCancel,
 }) => {
+  const { t } = useTranslation();
   const { pending, run } = useAsyncAction();
 
   return (
@@ -27,10 +29,10 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       <p className="bt-modal__message">{message}</p>
       <div className="bt-modal__actions">
         <button type="button" className="bt-button bt-button--secondary" onClick={onCancel} disabled={pending}>
-          {cancelLabel}
+          {cancelLabel ?? t('common.cancel')}
         </button>
         <button type="button" className="bt-button bt-button--danger" onClick={() => run(onConfirm)} disabled={pending}>
-          {confirmLabel}
+          {confirmLabel ?? t('common.yes')}
         </button>
       </div>
     </Modal>

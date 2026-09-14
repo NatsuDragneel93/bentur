@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import './Tours.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
@@ -14,6 +15,7 @@ import FloatingAddButton from '../../components/ui/FloatingAddButton';
 
 const Tours: React.FC = () => {
   const { showError } = useToast();
+  const { t } = useTranslation();
   const [tours, setTours] = useState<Tour[]>([]);
   const [loading, setLoading] = useState(true);
   const { tourId, artistId } = useParams();
@@ -31,9 +33,9 @@ const Tours: React.FC = () => {
       setTours(await toursService.getAllTours());
     } catch (error) {
       console.error('Error loading tours:', error);
-      showError('Errore nel caricamento dei tour');
+      showError(t('tours.loadError'));
     }
-  }, [showError]);
+  }, [showError, t]);
 
   useEffect(() => {
     loadTours().finally(() => setLoading(false));
@@ -62,7 +64,7 @@ const Tours: React.FC = () => {
 
   const handleSaveTour = async () => {
     if (tourName.trim() === '') {
-      showError('Il nome del tour è obbligatorio');
+      showError(t('tours.nameRequired'));
       return;
     }
 
@@ -85,7 +87,7 @@ const Tours: React.FC = () => {
       closeModal();
     } catch (error) {
       console.error('Error adding/editing tour:', error);
-      showError('Errore nel salvare il tour');
+      showError(t('tours.saveError'));
     }
   };
 
@@ -98,7 +100,7 @@ const Tours: React.FC = () => {
       setTourToDelete(null);
     } catch (error) {
       console.error('Error deleting tour:', error);
-      showError('Errore nell\'eliminazione del tour');
+      showError(t('tours.deleteError'));
     }
   };
 
@@ -135,7 +137,7 @@ const Tours: React.FC = () => {
   return (
     <div className="tours-page-container">
       <div className="tours-container">
-        <h1>Tours</h1>
+        <h1>{t('tours.title')}</h1>
 
         <ul className="tours-list">
           {tours.map(tour => (
@@ -154,8 +156,8 @@ const Tours: React.FC = () => {
                       e.stopPropagation(); // Previene il click sul tour-content
                       openEditModal(tour);
                     }}
-                    title="Modifica tour"
-                    aria-label={`Modifica ${tour.name}`}
+                    title={t('tours.editTitle')}
+                    aria-label={t('tours.editLabel', { name: tour.name })}
                   >
                     <FontAwesomeIcon icon={faEdit} />
                   </button>
@@ -166,8 +168,8 @@ const Tours: React.FC = () => {
                       e.stopPropagation(); // Previene il click sul tour-content
                       setTourToDelete(tour.id);
                     }}
-                    title="Elimina tour"
-                    aria-label={`Elimina ${tour.name}`}
+                    title={t('common.delete')}
+                    aria-label={t('tours.deleteLabel', { name: tour.name })}
                   >
                     <FontAwesomeIcon icon={faTrash} />
                   </button>
@@ -177,18 +179,18 @@ const Tours: React.FC = () => {
           ))}
         </ul>
 
-        <FloatingAddButton label="Aggiungi tour" onClick={openAddModal} />
+        <FloatingAddButton label={t('tours.add')} onClick={openAddModal} />
       </div>
 
       <FormModal
         open={isTourModalOpen}
-        title={tourToEdit ? 'Modifica Tour' : 'Aggiungi Tour'}
-        submitLabel={tourToEdit ? 'Salva Modifiche' : 'Aggiungi'}
+        title={t(tourToEdit ? 'tours.editTitle' : 'tours.addTitle')}
+        submitLabel={t(tourToEdit ? 'common.saveChanges' : 'common.add')}
         onSubmit={handleSaveTour}
         onClose={closeModal}
       >
         <label>
-          Nome Tour:
+          {t('tours.nameField')}
           <input
             type="text"
             value={tourName}
@@ -197,7 +199,7 @@ const Tours: React.FC = () => {
           />
         </label>
         <label>
-          Stage Plot (URL):
+          {t('tours.stagePlotField')}
           <input
             type="url"
             value={tourStagePlot}
@@ -206,7 +208,7 @@ const Tours: React.FC = () => {
           />
         </label>
         <label>
-          Channel List (URL):
+          {t('tours.channelListField')}
           <input
             type="url"
             value={tourChannelList}
@@ -218,7 +220,7 @@ const Tours: React.FC = () => {
 
       <ConfirmDialog
         open={tourToDelete !== null}
-        message="Sei sicuro di voler eliminare questo tour? Verranno eliminati anche i suoi artisti."
+        message={t('tours.deleteConfirm')}
         onConfirm={handleDeleteTour}
         onCancel={() => setTourToDelete(null)}
       />
