@@ -1,5 +1,12 @@
 import type { Contact } from '../services/usefulContacts.service';
 
+export const CONTACT_CATEGORIES = [
+  'Negozio strumenti',
+  'Service',
+  'Tecnico/riparatore',
+  'Utility',
+] as const;
+
 export interface ContactFilters {
   category: string;
   city: string;

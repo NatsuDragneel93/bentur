@@ -22,6 +22,8 @@ Per ora solo online; la gestione offline è prevista in futuro (tenerne conto ne
 ## Struttura
 - `src/services/firebase.service.ts` — istanze Firebase `auth`, `provider`, `database` (importate direttamente dai servizi)
 - `src/context/AuthProvider.tsx` — unico listener di `onAuthStateChanged`; hook in `src/hooks/useAuth.ts`: `useAuth()` (user, loading, signInWithGoogle, logout) e `useRequiredUser()` per le pagine sotto ProtectedRoute
+- `src/components/ui/` — componenti condivisi: `FormModal` (form + blocco doppio invio), `ConfirmDialog`, `Modal`, `LoadingState`, `FloatingAddButton`; stili in `ui.scss` con prefisso `bt-`
+- `src/context/ToastProvider.tsx` + `useToast()` — notifiche (`showError`, `showSuccess`, `showToast`); non usare `alert()`
 - `src/components/ProtectedRoute.tsx` — redirect a `/` se non loggato; `Header.tsx` — nav + menu profilo/logout
 - `src/services/*.service.ts` — un servizio singleton per collection Firestore
 - `src/pages/<sezione>/` — componente + SCSS; le pagine non usano Firebase Auth direttamente
@@ -44,4 +46,5 @@ Gli item delle liste sono array dentro il documento categoria: ogni modifica fa 
 - Test accanto al file testato (`*.test.ts(x)`). `src/test/setup.ts` mocka sempre `firebase.service`; i test di servizi mockano `firebase/firestore`, i test di pagine mockano il servizio. Usare `renderWithAuth` (`src/test/renderWithAuth.tsx`) per pagine che richiedono utente/router
 - Logica pura (filtri, normalizzazioni) in `src/utils/` con test dedicati
 - Testi UI e commenti in italiano (titoli sezioni in inglese)
-- Modali, loading e conferme di eliminazione sono reimplementati inline in ogni pagina (nessun componente condiviso)
+- Usare i componenti di `src/components/ui/` per modali, conferme, caricamento e pulsante "+"; errori all'utente via `useToast().showError`
+- Gli SCSS delle pagine sono GLOBALI (nessun CSS module): classi generiche come `.modal`, `.save-button`, `.confirm-button` definite in più file collidono e vince l'ultimo importato. To Do Personal, To Buy e Inventory usano ancora le vecchie modali inline con queste classi (da migrare nella fase 6); non rimuovere le regole `.modal` finché non sono migrate

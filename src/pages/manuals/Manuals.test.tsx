@@ -68,9 +68,16 @@ describe('Manuals', () => {
     expect(service.deleteManual).toHaveBeenCalledWith('m2');
   });
 
+  it('mostra una notifica se il caricamento fallisce', async () => {
+    service.getUserManuals.mockRejectedValue(new Error('offline'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    renderWithAuth(<Manuals />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Errore nel caricamento dei manuali');
+  });
+
   it('non salva un manuale senza titolo o link', async () => {
     const user = userEvent.setup();
-    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
     renderWithAuth(<Manuals />);
     await screen.findByText('Yamaha CL5');
 
@@ -78,7 +85,7 @@ describe('Manuals', () => {
     await user.type(screen.getByLabelText('Titolo:'), 'Solo titolo');
     await user.click(screen.getByRole('button', { name: 'Aggiungi' }));
 
-    expect(alertSpy).toHaveBeenCalled();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Titolo e link sono obbligatori');
     expect(service.addManual).not.toHaveBeenCalled();
   });
 });

@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { useToast } from '../../hooks/useToast';
 import './Login.scss';
 
 const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { user, loading, signInWithGoogle } = useAuth();
+  const { showError } = useToast();
 
   const handleGoogleLogin = async () => {
     try {
@@ -15,7 +17,7 @@ const LoginPage: React.FC = () => {
       navigate('/home');
     } catch (error) {
       console.error('Errore durante l\'autenticazione:', error);
-      alert('Errore durante il login. Riprova.');
+      showError('Errore durante il login. Riprova.');
     } finally {
       setIsLoading(false);
     }

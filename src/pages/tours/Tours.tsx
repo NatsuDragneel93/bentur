@@ -1,104 +1,111 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './Tours.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import toursService, { Tour } from '../../services/tours.service';
+import { useToast } from '../../hooks/useToast';
 import TourDetail from './components/TourDetail';
 import ArtistDetail from './components/ArtistDetail';
+import FormModal from '../../components/ui/FormModal';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import LoadingState from '../../components/ui/LoadingState';
+import FloatingAddButton from '../../components/ui/FloatingAddButton';
 
 const Tours: React.FC = () => {
+  const { showError } = useToast();
   const [tours, setTours] = useState<Tour[]>([]);
   const [loading, setLoading] = useState(true);
   const { tourId, artistId } = useParams();
   const navigate = useNavigate();
 
-  // Modal states
   const [isTourModalOpen, setIsTourModalOpen] = useState(false);
   const [tourToEdit, setTourToEdit] = useState<Tour | null>(null);
-  const [newTourName, setNewTourName] = useState('');
-  const [newTourStagePlot, setNewTourStagePlot] = useState('');
-  const [newTourChannelList, setNewTourChannelList] = useState('');
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [tourName, setTourName] = useState('');
+  const [tourStagePlot, setTourStagePlot] = useState('');
+  const [tourChannelList, setTourChannelList] = useState('');
   const [tourToDelete, setTourToDelete] = useState<string | null>(null);
 
   const loadTours = useCallback(async () => {
     try {
-      const allTours = await toursService.getAllTours();
-      setTours(allTours);
+      setTours(await toursService.getAllTours());
     } catch (error) {
       console.error('Error loading tours:', error);
+      showError('Errore nel caricamento dei tour');
     }
-  }, []);
+  }, [showError]);
 
   useEffect(() => {
     loadTours().finally(() => setLoading(false));
   }, [loadTours]);
 
-  const handleAddOrEditTour = async () => {
-    if (newTourName.trim() === '') return;
-    
-    try {
-      if (tourToEdit) {
-        // Edit tour
-        await toursService.updateTour(tourToEdit.id, {
-          name: newTourName.trim(),
-          stagePlot: newTourStagePlot.trim(),
-          channelList: newTourChannelList.trim()
-        });
-      } else {
-        // Add new tour
-        await toursService.addTour(
-          newTourName.trim(),
-          newTourStagePlot.trim() || undefined,
-          newTourChannelList.trim() || undefined
-        );
-      }
-      
-      await loadTours();
-      setIsTourModalOpen(false);
-      resetModalState();
-    } catch (error) {
-      console.error('Error adding/editing tour:', error);
-    }
+  const openAddModal = () => {
+    setTourToEdit(null);
+    setTourName('');
+    setTourStagePlot('');
+    setTourChannelList('');
+    setIsTourModalOpen(true);
   };
 
-  const handleEditClick = (tour: Tour) => {
+  const openEditModal = (tour: Tour) => {
     setTourToEdit(tour);
-    setNewTourName(tour.name);
-    setNewTourStagePlot(tour.stagePlot || '');
-    setNewTourChannelList(tour.channelList || '');
+    setTourName(tour.name);
+    setTourStagePlot(tour.stagePlot || '');
+    setTourChannelList(tour.channelList || '');
     setIsTourModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsTourModalOpen(false);
+    setTourToEdit(null);
+  };
+
+  const handleSaveTour = async () => {
+    if (tourName.trim() === '') {
+      showError('Il nome del tour è obbligatorio');
+      return;
+    }
+
+    try {
+      if (tourToEdit) {
+        await toursService.updateTour(tourToEdit.id, {
+          name: tourName.trim(),
+          stagePlot: tourStagePlot.trim(),
+          channelList: tourChannelList.trim()
+        });
+      } else {
+        await toursService.addTour(
+          tourName.trim(),
+          tourStagePlot.trim() || undefined,
+          tourChannelList.trim() || undefined
+        );
+      }
+
+      await loadTours();
+      closeModal();
+    } catch (error) {
+      console.error('Error adding/editing tour:', error);
+      showError('Errore nel salvare il tour');
+    }
   };
 
   const handleDeleteTour = async () => {
     if (!tourToDelete) return;
-    
+
     try {
       await toursService.deleteTour(tourToDelete);
       await loadTours();
-      setIsDeleteModalOpen(false);
       setTourToDelete(null);
     } catch (error) {
       console.error('Error deleting tour:', error);
+      showError('Errore nell\'eliminazione del tour');
     }
-  };
-
-  const resetModalState = () => {
-    setTourToEdit(null);
-    setNewTourName('');
-    setNewTourStagePlot('');
-    setNewTourChannelList('');
   };
 
   if (loading) {
     return (
       <div className="tours-page-container">
-        <div className="tours-container">
-          <div style={{ textAlign: 'center', padding: '2rem' }}>
-            Caricamento...
-          </div>
-        </div>
+        <LoadingState />
       </div>
     );
   }
@@ -129,11 +136,11 @@ const Tours: React.FC = () => {
     <div className="tours-page-container">
       <div className="tours-container">
         <h1>Tours</h1>
-        
+
         <ul className="tours-list">
           {tours.map(tour => (
             <li key={tour.id} className="tour-item">
-              <div 
+              <div
                 className="tour-content"
                 onClick={() => navigate(`/tours/${tour.id}`)}
                 style={{ cursor: 'pointer' }}
@@ -145,9 +152,10 @@ const Tours: React.FC = () => {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation(); // Previene il click sul tour-content
-                      handleEditClick(tour);
+                      openEditModal(tour);
                     }}
                     title="Modifica tour"
+                    aria-label={`Modifica ${tour.name}`}
                   >
                     <FontAwesomeIcon icon={faEdit} />
                   </button>
@@ -157,9 +165,9 @@ const Tours: React.FC = () => {
                     onClick={(e) => {
                       e.stopPropagation(); // Previene il click sul tour-content
                       setTourToDelete(tour.id);
-                      setIsDeleteModalOpen(true);
                     }}
                     title="Elimina tour"
+                    aria-label={`Elimina ${tour.name}`}
                   >
                     <FontAwesomeIcon icon={faTrash} />
                   </button>
@@ -169,105 +177,51 @@ const Tours: React.FC = () => {
           ))}
         </ul>
 
-        {/* Floating button per aggiungere tour */}
-        <button
-          className="add-tour-floating-button"
-          onClick={() => {
-            resetModalState();
-            setIsTourModalOpen(true);
-          }}
-          aria-label="Aggiungi tour"
-        >
-          <FontAwesomeIcon icon={faPlus} />
-        </button>
+        <FloatingAddButton label="Aggiungi tour" onClick={openAddModal} />
       </div>
 
-      {/* Modal aggiunta/modifica tour */}
-      {isTourModalOpen && (
-        <div className="modal">
-          <div className="modal-content">
-            <h2>{tourToEdit ? 'Modifica Tour' : 'Aggiungi Tour'}</h2>
-            <form
-              onSubmit={e => {
-                e.preventDefault();
-                handleAddOrEditTour();
-              }}
-            >
-              <label>
-                Nome Tour:
-                <input
-                  type="text"
-                  value={newTourName}
-                  onChange={e => setNewTourName(e.target.value)}
-                  autoFocus
-                  required
-                />
-              </label>
-              <label>
-                Stage Plot (URL):
-                <input
-                  type="url"
-                  value={newTourStagePlot}
-                  onChange={e => setNewTourStagePlot(e.target.value)}
-                  placeholder="https://drive.google.com/..."
-                />
-              </label>
-              <label>
-                Channel List (URL):
-                <input
-                  type="url"
-                  value={newTourChannelList}
-                  onChange={e => setNewTourChannelList(e.target.value)}
-                  placeholder="https://drive.google.com/..."
-                />
-              </label>
-              <div className="modal-actions">
-                <button type="submit" className="save-button">
-                  {tourToEdit ? 'Salva Modifiche' : 'Aggiungi'}
-                </button>
-                <button
-                  type="button"
-                  className="cancel-button"
-                  onClick={() => {
-                    setIsTourModalOpen(false);
-                    resetModalState();
-                  }}
-                >
-                  Annulla
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <FormModal
+        open={isTourModalOpen}
+        title={tourToEdit ? 'Modifica Tour' : 'Aggiungi Tour'}
+        submitLabel={tourToEdit ? 'Salva Modifiche' : 'Aggiungi'}
+        onSubmit={handleSaveTour}
+        onClose={closeModal}
+      >
+        <label>
+          Nome Tour:
+          <input
+            type="text"
+            value={tourName}
+            onChange={e => setTourName(e.target.value)}
+            autoFocus
+          />
+        </label>
+        <label>
+          Stage Plot (URL):
+          <input
+            type="url"
+            value={tourStagePlot}
+            onChange={e => setTourStagePlot(e.target.value)}
+            placeholder="https://drive.google.com/..."
+          />
+        </label>
+        <label>
+          Channel List (URL):
+          <input
+            type="url"
+            value={tourChannelList}
+            onChange={e => setTourChannelList(e.target.value)}
+            placeholder="https://drive.google.com/..."
+          />
+        </label>
+      </FormModal>
 
-      {/* Modal conferma eliminazione tour */}
-      {isDeleteModalOpen && (
-        <div className="modal">
-          <div className="modal-content">
-            <h3>Sei sicuro di voler eliminare questo tour?</h3>
-            <div className="delete-actions">
-              <button
-                type="button"
-                className="confirm-button"
-                onClick={handleDeleteTour}
-              >
-                Sì
-              </button>
-              <button
-                type="button"
-                className="cancel-button"
-                onClick={() => {
-                  setIsDeleteModalOpen(false);
-                  setTourToDelete(null);
-                }}
-              >
-                Annulla
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={tourToDelete !== null}
+        message="Sei sicuro di voler eliminare questo tour? Verranno eliminati anche i suoi artisti."
+        onConfirm={handleDeleteTour}
+        onCancel={() => setTourToDelete(null)}
+      />
     </div>
   );
 };

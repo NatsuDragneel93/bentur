@@ -10,6 +10,8 @@ import {
   faCheckCircle 
 } from '@fortawesome/free-solid-svg-icons';
 import tourArtistsService, { TourArtist } from '../../../services/tourArtists.service';
+import { useToast } from '../../../hooks/useToast';
+import LoadingState from '../../../components/ui/LoadingState';
 
 interface ArtistDetailProps {
   tourId: string;
@@ -20,6 +22,7 @@ interface ArtistDetailProps {
 const ArtistDetail: React.FC<ArtistDetailProps> = ({ tourId, artistId, onBack }) => {
   const [artist, setArtist] = useState<TourArtist | null>(null);
   const [loading, setLoading] = useState(true);
+  const { showError, showToast } = useToast();
 
   useEffect(() => {
     const loadArtistData = async () => {
@@ -29,24 +32,29 @@ const ArtistDetail: React.FC<ArtistDetailProps> = ({ tourId, artistId, onBack })
         setArtist(currentArtist?.tourId === tourId ? currentArtist : null);
       } catch (error) {
         console.error('Error loading artist data:', error);
+        showError("Errore nel caricamento dell'artista");
       }
     };
 
     setLoading(true);
     loadArtistData().finally(() => setLoading(false));
-  }, [tourId, artistId]);
+  }, [tourId, artistId, showError]);
 
   if (loading) {
-    return <div className="loading">Caricamento...</div>;
+    return (
+      <div className="artist-detail-container">
+        <LoadingState />
+      </div>
+    );
   }
 
   if (!artist) {
     return <div className="error">Artista non trovato</div>;
   }
 
-  const handleSectionClick = (section: string) => {
-    console.log(`Opening ${section} for artist ${artist.name}`);
-    // TODO: Implement navigation to specific sections
+  // TODO: navigazione alle singole sezioni, non ancora implementate
+  const handleSectionClick = () => {
+    showToast('Sezione in arrivo');
   };
 
   return (
@@ -67,7 +75,7 @@ const ArtistDetail: React.FC<ArtistDetailProps> = ({ tourId, artistId, onBack })
         <div className="artist-sections-grid">
           <div 
             className="artist-section-card setup-a" 
-            onClick={() => handleSectionClick('setup-a')}
+            onClick={() => handleSectionClick()}
           >
             <div className="section-icon">
               <FontAwesomeIcon icon={faCog} />
@@ -80,7 +88,7 @@ const ArtistDetail: React.FC<ArtistDetailProps> = ({ tourId, artistId, onBack })
 
           <div 
             className="artist-section-card setup-b" 
-            onClick={() => handleSectionClick('setup-b')}
+            onClick={() => handleSectionClick()}
           >
             <div className="section-icon">
               <FontAwesomeIcon icon={faCog} />
@@ -93,7 +101,7 @@ const ArtistDetail: React.FC<ArtistDetailProps> = ({ tourId, artistId, onBack })
 
           <div 
             className="artist-section-card spare" 
-            onClick={() => handleSectionClick('spare')}
+            onClick={() => handleSectionClick()}
           >
             <div className="section-icon">
               <FontAwesomeIcon icon={faTools} />
@@ -106,7 +114,7 @@ const ArtistDetail: React.FC<ArtistDetailProps> = ({ tourId, artistId, onBack })
 
           <div 
             className="artist-section-card todo" 
-            onClick={() => handleSectionClick('todo')}
+            onClick={() => handleSectionClick()}
           >
             <div className="section-icon">
               <FontAwesomeIcon icon={faClipboardList} />
@@ -119,7 +127,7 @@ const ArtistDetail: React.FC<ArtistDetailProps> = ({ tourId, artistId, onBack })
 
           <div 
             className="artist-section-card consumabili" 
-            onClick={() => handleSectionClick('consumabili')}
+            onClick={() => handleSectionClick()}
           >
             <div className="section-icon">
               <FontAwesomeIcon icon={faBoxes} />
@@ -132,7 +140,7 @@ const ArtistDetail: React.FC<ArtistDetailProps> = ({ tourId, artistId, onBack })
 
           <div 
             className="artist-section-card check-before" 
-            onClick={() => handleSectionClick('check-before')}
+            onClick={() => handleSectionClick()}
           >
             <div className="section-icon">
               <FontAwesomeIcon icon={faCheckCircle} />

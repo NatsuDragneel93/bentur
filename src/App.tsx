@@ -15,41 +15,44 @@ import Header from './components/Header';
 import MyInventoryPersonal from './pages/my-inventory/personal/MyInventoryPersonal';
 import MyInventoryTour from './pages/my-inventory/tour/MyInventoryTour';
 import { AuthProvider } from './context/AuthProvider';
+import { ToastProvider } from './context/ToastProvider';
 import ProtectedRoute from './components/ProtectedRoute';
 
 const App: React.FC = () => {
   return (
     <div className="app-main-container">
       <AuthProvider>
-        <Router>
-          <Routes>
-            <Route path="/" element={<Login />} />
-            <Route
-              path="/*"
-              element={
-                <ProtectedRoute>
-                  <Header />
-                  <Routes>
-                    <Route path="/home" element={<Home />} />
-                    <Route path="/tours" element={<Tours />} />
-                    <Route path="/tours/:tourId" element={<Tours />} />
-                    <Route path="/tours/:tourId/artists/:artistId" element={<Tours />} />
-                    <Route path="/to-do" element={<ToDo />} />
-                    <Route path="/to-do/personal" element={<ToDoPersonal />} />
-                    <Route path="/to-do/tour" element={<ToDoTour />} />
-                    <Route path="/to-buy" element={<ToBuy />} />
-                    <Route path="/my-inventory" element={<MyInventory />} />
-                    <Route path="/my-inventory/personal" element={<MyInventoryPersonal />} />
-                    <Route path="/my-inventory/tour" element={<MyInventoryTour />} />
-                    <Route path="/manuals" element={<Manuals />} />
-                    <Route path="/useful-contacts" element={<UsefulContacts />} />
-                    <Route path="*" element={<Navigate to="/home" replace />} />
-                  </Routes>
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-        </Router>
+        <ToastProvider>
+          <Router>
+            <Routes>
+              <Route path="/" element={<Login />} />
+              <Route
+                path="/*"
+                element={
+                  <ProtectedRoute>
+                    <Header />
+                    <Routes>
+                      <Route path="/home" element={<Home />} />
+                      <Route path="/tours" element={<Tours />} />
+                      <Route path="/tours/:tourId" element={<Tours />} />
+                      <Route path="/tours/:tourId/artists/:artistId" element={<Tours />} />
+                      <Route path="/to-do" element={<ToDo />} />
+                      <Route path="/to-do/personal" element={<ToDoPersonal />} />
+                      <Route path="/to-do/tour" element={<ToDoTour />} />
+                      <Route path="/to-buy" element={<ToBuy />} />
+                      <Route path="/my-inventory" element={<MyInventory />} />
+                      <Route path="/my-inventory/personal" element={<MyInventoryPersonal />} />
+                      <Route path="/my-inventory/tour" element={<MyInventoryTour />} />
+                      <Route path="/manuals" element={<Manuals />} />
+                      <Route path="/useful-contacts" element={<UsefulContacts />} />
+                      <Route path="*" element={<Navigate to="/home" replace />} />
+                    </Routes>
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </Router>
+        </ToastProvider>
       </AuthProvider>
     </div>
   );

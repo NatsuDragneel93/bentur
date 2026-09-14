@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { User } from 'firebase/auth';
 import { vi } from 'vitest';
 import { AuthContext, AuthContextValue } from '../context/auth.context';
+import { ToastProvider } from '../context/ToastProvider';
 
 export const fakeUser = {
   uid: 'user-1',
@@ -21,7 +22,7 @@ interface Options {
   path?: string;
 }
 
-// Renderizza un componente dentro router e contesto di autenticazione finti
+// Renderizza un componente dentro router, notifiche e contesto di autenticazione finto
 export const renderWithAuth = (ui: React.ReactElement, options: Options = {}) => {
   const auth: AuthContextValue = {
     user: fakeUser,
@@ -34,14 +35,16 @@ export const renderWithAuth = (ui: React.ReactElement, options: Options = {}) =>
 
   const result = render(
     <AuthContext.Provider value={auth}>
-      <MemoryRouter initialEntries={[route]}>
-        <Routes>
-          <Route path={options.path ?? route} element={ui} />
-          {Object.entries(options.extraRoutes ?? {}).map(([path, element]) => (
-            <Route key={path} path={path} element={element} />
-          ))}
-        </Routes>
-      </MemoryRouter>
+      <ToastProvider>
+        <MemoryRouter initialEntries={[route]}>
+          <Routes>
+            <Route path={options.path ?? route} element={ui} />
+            {Object.entries(options.extraRoutes ?? {}).map(([path, element]) => (
+              <Route key={path} path={path} element={element} />
+            ))}
+          </Routes>
+        </MemoryRouter>
+      </ToastProvider>
     </AuthContext.Provider>
   );
 

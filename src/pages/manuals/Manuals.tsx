@@ -1,33 +1,38 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './Manuals.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faTrash, faEdit, faExternalLinkAlt } from '@fortawesome/free-solid-svg-icons';
+import { faTrash, faEdit, faExternalLinkAlt } from '@fortawesome/free-solid-svg-icons';
 import { useRequiredUser } from '../../hooks/useAuth';
+import { useToast } from '../../hooks/useToast';
 import manualsService, { Manual } from '../../services/manuals.service';
+import FormModal from '../../components/ui/FormModal';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import LoadingState from '../../components/ui/LoadingState';
+import FloatingAddButton from '../../components/ui/FloatingAddButton';
+
+type ManualForm = Pick<Manual, 'title' | 'link'>;
+
+const emptyForm: ManualForm = { title: '', link: '' };
 
 const Manuals: React.FC = () => {
-  const [manuals, setManuals] = useState<Manual[]>([]);
   const user = useRequiredUser();
+  const { showError } = useToast();
+  const [manuals, setManuals] = useState<Manual[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [manualToDelete, setManualToDelete] = useState<string | null>(null);
-  const [newManual, setNewManual] = useState<Omit<Manual, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>({
-    title: '',
-    link: ''
-  });
+  const [form, setForm] = useState<ManualForm>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [manualToDelete, setManualToDelete] = useState<string | null>(null);
 
   const loadUserManuals = useCallback(async (userId: string) => {
     try {
-      const userManuals = await manualsService.getUserManuals(userId);
-      setManuals(userManuals);
+      setManuals(await manualsService.getUserManuals(userId));
     } catch (error) {
       console.error('Errore nel caricamento dei manuali:', error);
-      alert('Errore nel caricamento dei manuali');
+      showError('Errore nel caricamento dei manuali');
     }
-  }, []);
+  }, [showError]);
 
   useEffect(() => {
     loadUserManuals(user.uid).finally(() => setLoading(false));
@@ -35,54 +40,17 @@ const Manuals: React.FC = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setNewManual({ ...newManual, [name]: value });
+    setForm(current => ({ ...current, [name]: value }));
   };
 
-  const handleAddOrEditManual = async () => {
-    if (!newManual.title.trim() || !newManual.link.trim()) {
-      alert('Titolo e link sono obbligatori');
-      return;
-    }
-
-    try {
-      if (editingId !== null) {
-        // Modifica manuale esistente
-        await manualsService.updateManual(editingId, newManual);
-        await loadUserManuals(user.uid);
-      } else {
-        // Aggiungi nuovo manuale
-        await manualsService.addManual(user.uid, newManual);
-        await loadUserManuals(user.uid);
-      }
-      
-      setNewManual({ title: '', link: '' });
-      setEditingId(null);
-      setIsModalOpen(false);
-    } catch (error) {
-      console.error('Errore nel salvare il manuale:', error);
-      alert('Errore nel salvare il manuale');
-    }
+  const openAddModal = () => {
+    setForm(emptyForm);
+    setEditingId(null);
+    setIsModalOpen(true);
   };
 
-  const handleDeleteManual = async () => {
-    if (manualToDelete === null) return;
-
-    try {
-      await manualsService.deleteManual(manualToDelete);
-      await loadUserManuals(user.uid);
-      setManualToDelete(null);
-      setIsDeleteModalOpen(false);
-    } catch (error) {
-      console.error('Errore nell\'eliminazione del manuale:', error);
-      alert('Errore nell\'eliminazione del manuale');
-    }
-  };
-
-  const handleEditManual = (manual: Manual) => {
-    setNewManual({
-      title: manual.title,
-      link: manual.link
-    });
+  const openEditModal = (manual: Manual) => {
+    setForm({ title: manual.title, link: manual.link });
     setEditingId(manual.id ?? null);
     setIsModalOpen(true);
   };
@@ -90,15 +58,40 @@ const Manuals: React.FC = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingId(null);
-    // Reset dei campi quando si chiude la modale
-    setNewManual({ title: '', link: '' });
+    setForm(emptyForm);
   };
 
-  const openAddManualModal = () => {
-    // Reset dei campi prima di aprire la modale per un nuovo manuale
-    setNewManual({ title: '', link: '' });
-    setEditingId(null);
-    setIsModalOpen(true);
+  const handleSave = async () => {
+    if (!form.title.trim() || !form.link.trim()) {
+      showError('Titolo e link sono obbligatori');
+      return;
+    }
+
+    try {
+      if (editingId !== null) {
+        await manualsService.updateManual(editingId, form);
+      } else {
+        await manualsService.addManual(user.uid, form);
+      }
+      await loadUserManuals(user.uid);
+      closeModal();
+    } catch (error) {
+      console.error('Errore nel salvare il manuale:', error);
+      showError('Errore nel salvare il manuale');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (manualToDelete === null) return;
+
+    try {
+      await manualsService.deleteManual(manualToDelete);
+      await loadUserManuals(user.uid);
+      setManualToDelete(null);
+    } catch (error) {
+      console.error('Errore nell\'eliminazione del manuale:', error);
+      showError('Errore nell\'eliminazione del manuale');
+    }
   };
 
   const filteredManuals = manuals.filter((manual) =>
@@ -108,18 +101,7 @@ const Manuals: React.FC = () => {
   if (loading) {
     return (
       <div className="manuals-page-container">
-        <div className="manuals-container">
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center', 
-            height: '50vh',
-            fontSize: '18px',
-            color: 'white'
-          }}>
-            Caricamento manuali...
-          </div>
-        </div>
+        <LoadingState message="Caricamento manuali..." />
       </div>
     );
   }
@@ -152,90 +134,42 @@ const Manuals: React.FC = () => {
                 >
                   <FontAwesomeIcon icon={faExternalLinkAlt} /> Apri
                 </a>
-                <button className="edit-button" onClick={() => handleEditManual(manual)}>
+                <button className="edit-button" onClick={() => openEditModal(manual)}>
                   <FontAwesomeIcon icon={faEdit} /> Modifica
                 </button>
-                <button
-                  className="delete-button"
-                  onClick={() => {
-                    setManualToDelete(manual.id ?? null);
-                    setIsDeleteModalOpen(true);
-                  }}
-                >
+                <button className="delete-button" onClick={() => setManualToDelete(manual.id ?? null)}>
                   <FontAwesomeIcon icon={faTrash} /> Elimina
                 </button>
               </div>
             </div>
           ))}
         </div>
-        <button
-          className="add-manual-floating-button"
-          onClick={openAddManualModal}
-          aria-label="Aggiungi manuale"
-        >
-          <FontAwesomeIcon icon={faPlus} />
-        </button>
+        <FloatingAddButton label="Aggiungi manuale" onClick={openAddModal} />
       </div>
 
-      {isModalOpen && (
-        <div className="modal">
-          <div className="modal-content">
-            <h2>{editingId !== null ? 'Modifica Manuale' : 'Aggiungi Manuale'}</h2>
-            <form>
-              <label>
-                Titolo:
-                <input
-                  type="text"
-                  name="title"
-                  value={newManual.title}
-                  onChange={handleInputChange}
-                />
-              </label>
-              <label>
-                Link:
-                <input
-                  type="text"
-                  name="link"
-                  value={newManual.link}
-                  onChange={handleInputChange}
-                />
-              </label>
-              <div className="modal-actions">
-                <button type="button" className="save-button" onClick={handleAddOrEditManual}>
-                  {editingId !== null ? 'Salva Modifiche' : 'Aggiungi'}
-                </button>
-                <button type="button" className="cancel-button" onClick={closeModal}>
-                  Annulla
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <FormModal
+        open={isModalOpen}
+        title={editingId !== null ? 'Modifica Manuale' : 'Aggiungi Manuale'}
+        submitLabel={editingId !== null ? 'Salva Modifiche' : 'Aggiungi'}
+        onSubmit={handleSave}
+        onClose={closeModal}
+      >
+        <label>
+          Titolo:
+          <input type="text" name="title" value={form.title} onChange={handleInputChange} autoFocus />
+        </label>
+        <label>
+          Link:
+          <input type="text" name="link" value={form.link} onChange={handleInputChange} />
+        </label>
+      </FormModal>
 
-      {isDeleteModalOpen && (
-        <div className="modal">
-          <div className="modal-content">
-            <h3>Sei sicuro di voler cancellare il manuale?</h3>
-            <div className="delete-actions">
-              <button
-                type="button"
-                className="confirm-button"
-                onClick={handleDeleteManual}
-              >
-                Sì
-              </button>
-              <button
-                type="button"
-                className="cancel-button"
-                onClick={() => setIsDeleteModalOpen(false)}
-              >
-                Annulla
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={manualToDelete !== null}
+        message="Sei sicuro di voler cancellare il manuale?"
+        onConfirm={handleDelete}
+        onCancel={() => setManualToDelete(null)}
+      />
     </div>
   );
 };

@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import './TourDetail.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faEdit, faTrash, faArrowLeft, faExternalLinkAlt } from '@fortawesome/free-solid-svg-icons';
+import { faEdit, faTrash, faArrowLeft, faExternalLinkAlt } from '@fortawesome/free-solid-svg-icons';
 import toursService, { Tour } from '../../../services/tours.service';
 import tourArtistsService, { TourArtist } from '../../../services/tourArtists.service';
+import { useToast } from '../../../hooks/useToast';
+import FormModal from '../../../components/ui/FormModal';
+import ConfirmDialog from '../../../components/ui/ConfirmDialog';
+import LoadingState from '../../../components/ui/LoadingState';
+import FloatingAddButton from '../../../components/ui/FloatingAddButton';
 
 interface TourDetailProps {
   tourId: string;
@@ -12,16 +17,15 @@ interface TourDetailProps {
 }
 
 const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }) => {
+  const { showError, showToast } = useToast();
   const [tour, setTour] = useState<Tour | null>(null);
   const [artists, setArtists] = useState<TourArtist[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Modal states for artists
   const [isArtistModalOpen, setIsArtistModalOpen] = useState(false);
   const [artistToEdit, setArtistToEdit] = useState<TourArtist | null>(null);
-  const [newArtistName, setNewArtistName] = useState('');
-  const [newArtistRole, setNewArtistRole] = useState('');
-  const [isDeleteArtistModalOpen, setIsDeleteArtistModalOpen] = useState(false);
+  const [artistName, setArtistName] = useState('');
+  const [artistRole, setArtistRole] = useState('');
   const [artistToDelete, setArtistToDelete] = useState<string | null>(null);
 
   const loadTourData = useCallback(async () => {
@@ -35,65 +39,69 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
       setArtists(artistsData);
     } catch (error) {
       console.error('Error loading tour data:', error);
+      showError('Errore nel caricamento del tour');
     }
-  }, [tourId]);
+  }, [tourId, showError]);
 
   useEffect(() => {
     setLoading(true);
     loadTourData().finally(() => setLoading(false));
   }, [loadTourData]);
 
-  const handleAddOrEditArtist = async () => {
-    if (newArtistName.trim() === '' || newArtistRole.trim() === '') return;
-    
-    try {
-      if (artistToEdit) {
-        // Edit artist
-        await tourArtistsService.updateTourArtist(artistToEdit.id, {
-          name: newArtistName.trim(),
-          role: newArtistRole.trim()
-        });
-      } else {
-        // Add new artist
-        await tourArtistsService.addTourArtist(
-          tourId,
-          newArtistName.trim(),
-          newArtistRole.trim()
-        );
-      }
-      
-      await loadTourData();
-      setIsArtistModalOpen(false);
-      resetArtistModalState();
-    } catch (error) {
-      console.error('Error adding/editing artist:', error);
-    }
+  const openAddArtistModal = () => {
+    setArtistToEdit(null);
+    setArtistName('');
+    setArtistRole('');
+    setIsArtistModalOpen(true);
   };
 
-  const handleEditArtistClick = (artist: TourArtist) => {
+  const openEditArtistModal = (artist: TourArtist) => {
     setArtistToEdit(artist);
-    setNewArtistName(artist.name);
-    setNewArtistRole(artist.role);
+    setArtistName(artist.name);
+    setArtistRole(artist.role);
     setIsArtistModalOpen(true);
+  };
+
+  const closeArtistModal = () => {
+    setIsArtistModalOpen(false);
+    setArtistToEdit(null);
+  };
+
+  const handleSaveArtist = async () => {
+    if (artistName.trim() === '' || artistRole.trim() === '') {
+      showError('Nome e ruolo sono obbligatori');
+      return;
+    }
+
+    try {
+      if (artistToEdit) {
+        await tourArtistsService.updateTourArtist(artistToEdit.id, {
+          name: artistName.trim(),
+          role: artistRole.trim()
+        });
+      } else {
+        await tourArtistsService.addTourArtist(tourId, artistName.trim(), artistRole.trim());
+      }
+
+      await loadTourData();
+      closeArtistModal();
+    } catch (error) {
+      console.error('Error adding/editing artist:', error);
+      showError('Errore nel salvare l\'artista');
+    }
   };
 
   const handleDeleteArtist = async () => {
     if (!artistToDelete) return;
-    
+
     try {
       await tourArtistsService.deleteTourArtist(artistToDelete);
       await loadTourData();
-      setIsDeleteArtistModalOpen(false);
       setArtistToDelete(null);
     } catch (error) {
       console.error('Error deleting artist:', error);
+      showError('Errore nell\'eliminazione dell\'artista');
     }
-  };
-
-  const resetArtistModalState = () => {
-    setArtistToEdit(null);
-    setNewArtistName('');
-    setNewArtistRole('');
   };
 
   const openExternalLink = (url: string) => {
@@ -105,9 +113,7 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
   if (loading) {
     return (
       <div className="tour-detail-container">
-        <div style={{ textAlign: 'center', padding: '2rem' }}>
-          Caricamento...
-        </div>
+        <LoadingState />
       </div>
     );
   }
@@ -125,7 +131,6 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
   return (
     <div className="tour-detail-container">
       <div className="tour-detail-content">
-        {/* Header con nome tour e pulsante back */}
         <div className="tour-detail-header">
           <button className="back-button" onClick={onBack}>
             <FontAwesomeIcon icon={faArrowLeft} />
@@ -134,42 +139,37 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
           <h1>{tour.name}</h1>
         </div>
 
-        {/* Sezione documenti del tour */}
         <div className="tour-documents">
           <div className="document-buttons">
             {tour.stagePlot && (
-              <button
-                className="document-button"
-                onClick={() => openExternalLink(tour.stagePlot!)}
-              >
+              <button className="document-button" onClick={() => openExternalLink(tour.stagePlot!)}>
                 <FontAwesomeIcon icon={faExternalLinkAlt} />
                 Stage Plot
               </button>
             )}
             {tour.channelList && (
-              <button
-                className="document-button"
-                onClick={() => openExternalLink(tour.channelList!)}
-              >
+              <button className="document-button" onClick={() => openExternalLink(tour.channelList!)}>
                 <FontAwesomeIcon icon={faExternalLinkAlt} />
                 Channel List
               </button>
             )}
-            <button className="document-button share-button">
+            <button
+              className="document-button share-button"
+              onClick={() => showToast('Condivisione con la crew in arrivo')}
+            >
               Share/Invite Crew
             </button>
           </div>
         </div>
 
-        {/* Sezione artisti */}
         <div className="artists-section">
           <h2>Artists</h2>
           <ul className="artists-list">
             {artists.map(artist => (
               <li key={artist.id} className="artist-item">
                 <div className="artist-content">
-                  <div 
-                    className="artist-info clickable" 
+                  <div
+                    className="artist-info clickable"
                     onClick={() => onArtistClick?.(artist.id)}
                   >
                     <span className="artist-name">{artist.name}</span>
@@ -179,19 +179,18 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
                     <button
                       className="artist-edit-button"
                       type="button"
-                      onClick={() => handleEditArtistClick(artist)}
+                      onClick={() => openEditArtistModal(artist)}
                       title="Modifica artista"
+                      aria-label={`Modifica ${artist.name}`}
                     >
                       <FontAwesomeIcon icon={faEdit} />
                     </button>
                     <button
                       className="artist-delete-button"
                       type="button"
-                      onClick={() => {
-                        setArtistToDelete(artist.id);
-                        setIsDeleteArtistModalOpen(true);
-                      }}
+                      onClick={() => setArtistToDelete(artist.id)}
                       title="Elimina artista"
+                      aria-label={`Elimina ${artist.name}`}
                     >
                       <FontAwesomeIcon icon={faTrash} />
                     </button>
@@ -202,97 +201,42 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
           </ul>
         </div>
 
-        {/* Floating button per aggiungere artista */}
-        <button
-          className="add-artist-floating-button"
-          onClick={() => {
-            resetArtistModalState();
-            setIsArtistModalOpen(true);
-          }}
-          aria-label="Aggiungi artista"
-        >
-          <FontAwesomeIcon icon={faPlus} />
-        </button>
+        <FloatingAddButton label="Aggiungi artista" onClick={openAddArtistModal} />
       </div>
 
-      {/* Modal aggiunta/modifica artista */}
-      {isArtistModalOpen && (
-        <div className="modal">
-          <div className="modal-content">
-            <h2>{artistToEdit ? 'Modifica Artista' : 'Aggiungi Artista'}</h2>
-            <form
-              onSubmit={e => {
-                e.preventDefault();
-                handleAddOrEditArtist();
-              }}
-            >
-              <label>
-                Nome Artista:
-                <input
-                  type="text"
-                  value={newArtistName}
-                  onChange={e => setNewArtistName(e.target.value)}
-                  autoFocus
-                  required
-                />
-              </label>
-              <label>
-                Ruolo:
-                <input
-                  type="text"
-                  value={newArtistRole}
-                  onChange={e => setNewArtistRole(e.target.value)}
-                  placeholder="Batterista, Chitarrista, Cantante..."
-                  required
-                />
-              </label>
-              <div className="modal-actions">
-                <button type="submit" className="save-button">
-                  {artistToEdit ? 'Salva Modifiche' : 'Aggiungi'}
-                </button>
-                <button
-                  type="button"
-                  className="cancel-button"
-                  onClick={() => {
-                    setIsArtistModalOpen(false);
-                    resetArtistModalState();
-                  }}
-                >
-                  Annulla
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <FormModal
+        open={isArtistModalOpen}
+        title={artistToEdit ? 'Modifica Artista' : 'Aggiungi Artista'}
+        submitLabel={artistToEdit ? 'Salva Modifiche' : 'Aggiungi'}
+        onSubmit={handleSaveArtist}
+        onClose={closeArtistModal}
+      >
+        <label>
+          Nome Artista:
+          <input
+            type="text"
+            value={artistName}
+            onChange={e => setArtistName(e.target.value)}
+            autoFocus
+          />
+        </label>
+        <label>
+          Ruolo:
+          <input
+            type="text"
+            value={artistRole}
+            onChange={e => setArtistRole(e.target.value)}
+            placeholder="Batterista, Chitarrista, Cantante..."
+          />
+        </label>
+      </FormModal>
 
-      {/* Modal conferma eliminazione artista */}
-      {isDeleteArtistModalOpen && (
-        <div className="modal">
-          <div className="modal-content">
-            <h3>Sei sicuro di voler eliminare questo artista?</h3>
-            <div className="delete-actions">
-              <button
-                type="button"
-                className="confirm-button"
-                onClick={handleDeleteArtist}
-              >
-                Sì
-              </button>
-              <button
-                type="button"
-                className="cancel-button"
-                onClick={() => {
-                  setIsDeleteArtistModalOpen(false);
-                  setArtistToDelete(null);
-                }}
-              >
-                Annulla
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={artistToDelete !== null}
+        message="Sei sicuro di voler eliminare questo artista?"
+        onConfirm={handleDeleteArtist}
+        onCancel={() => setArtistToDelete(null)}
+      />
     </div>
   );
 };
