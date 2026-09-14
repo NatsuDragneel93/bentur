@@ -1,16 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import './UsefulContacts.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faFilter, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
-import { useFirebase } from '../../context/firebase.context';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { useRequiredUser } from '../../hooks/useAuth';
 import usefulContactsService, { Contact } from '../../services/usefulContacts.service';
 
 const UsefulContacts: React.FC = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [user, setUser] = useState<User | null>(null);
+  const user = useRequiredUser();
   const [loading, setLoading] = useState(true);
-  const firebase = useFirebase();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [newContact, setNewContact] = useState<Omit<Contact, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>({
@@ -31,32 +29,19 @@ const UsefulContacts: React.FC = () => {
   });
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(firebase.auth, (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        loadUserContacts(currentUser.uid);
-      } else {
-        setContacts([]);
-        setLoading(false);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [firebase.auth]);
-
-  const loadUserContacts = async (userId: string) => {
+  const loadUserContacts = useCallback(async (userId: string) => {
     try {
-      setLoading(true);
       const userContacts = await usefulContactsService.getUserContacts(userId);
       setContacts(userContacts);
     } catch (error) {
       console.error('Errore nel caricamento dei contatti:', error);
       alert('Errore nel caricamento dei contatti');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadUserContacts(user.uid).finally(() => setLoading(false));
+  }, [user.uid, loadUserContacts]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -75,11 +60,6 @@ const UsefulContacts: React.FC = () => {
   };
 
   const handleAddOrEditContact = async () => {
-    if (!user) {
-      alert('Devi essere autenticato per aggiungere contatti');
-      return;
-    }
-
     if (!newContact.name.trim() || !newContact.category) {
       alert('Nome e categoria sono obbligatori');
       return;
@@ -119,7 +99,7 @@ const UsefulContacts: React.FC = () => {
   };
 
   const handleDeleteContact = async () => {
-    if (!user || contactToDelete === null) return;
+    if (contactToDelete === null) return;
 
     try {
       await usefulContactsService.deleteContact(contactToDelete);

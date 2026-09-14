@@ -14,13 +14,13 @@ import UsefulContacts from './pages/useful-contacts/UsefulContacts';
 import Header from './components/Header';
 import MyInventoryPersonal from './pages/my-inventory/personal/MyInventoryPersonal';
 import MyInventoryTour from './pages/my-inventory/tour/MyInventoryTour';
-import { FirebaseProvider } from './context/firebase.context';
+import { AuthProvider } from './context/AuthProvider';
 import ProtectedRoute from './components/ProtectedRoute';
 
 const App: React.FC = () => {
   return (
     <div className="app-main-container">
-      <FirebaseProvider>
+      <AuthProvider>
         <Router>
           <Routes>
             <Route path="/" element={<Login />} />
@@ -50,7 +50,7 @@ const App: React.FC = () => {
             />
           </Routes>
         </Router>
-      </FirebaseProvider>
+      </AuthProvider>
     </div>
   );
 };

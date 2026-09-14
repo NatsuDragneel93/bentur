@@ -1,8 +1,5 @@
 import React from 'react';
 import './ToDoTour.scss';
-// import { useFirebase } from '../../../context/firebase.context';
-// import { User, onAuthStateChanged } from 'firebase/auth';
-// import todoTourService, { Todo, Category } from '../../../services/todoTour.service';
 
 const ToDoTour: React.FC = () => {
   return (

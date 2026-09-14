@@ -1,9 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './TourDetail.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faEdit, faTrash, faArrowLeft, faExternalLinkAlt } from '@fortawesome/free-solid-svg-icons';
-import { useFirebase } from '../../../context/firebase.context';
-import { User, onAuthStateChanged } from 'firebase/auth';
 import toursService, { Tour } from '../../../services/tours.service';
 import tourArtistsService, { TourArtist } from '../../../services/tourArtists.service';
 
@@ -16,9 +14,7 @@ interface TourDetailProps {
 const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }) => {
   const [tour, setTour] = useState<Tour | null>(null);
   const [artists, setArtists] = useState<TourArtist[]>([]);
-  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const firebase = useFirebase();
 
   // Modal states for artists
   const [isArtistModalOpen, setIsArtistModalOpen] = useState(false);
@@ -28,39 +24,27 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
   const [isDeleteArtistModalOpen, setIsDeleteArtistModalOpen] = useState(false);
   const [artistToDelete, setArtistToDelete] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (firebase && firebase.auth) {
-      const unsubscribe = onAuthStateChanged(firebase.auth, (user: User | null) => {
-        setUser(user);
-        if (user) {
-          loadTourData();
-        } else {
-          setTour(null);
-          setArtists([]);
-        }
-        setLoading(false);
-      });
-
-      return () => unsubscribe();
-    }
-  }, [firebase, tourId]);
-
-  const loadTourData = async () => {
+  const loadTourData = useCallback(async () => {
     try {
       const [tourData, artistsData] = await Promise.all([
         toursService.getTourById(tourId),
         tourArtistsService.getTourArtists(tourId)
       ]);
-      
+
       setTour(tourData);
       setArtists(artistsData);
     } catch (error) {
       console.error('Error loading tour data:', error);
     }
-  };
+  }, [tourId]);
+
+  useEffect(() => {
+    setLoading(true);
+    loadTourData().finally(() => setLoading(false));
+  }, [loadTourData]);
 
   const handleAddOrEditArtist = async () => {
-    if (newArtistName.trim() === '' || newArtistRole.trim() === '' || !user) return;
+    if (newArtistName.trim() === '' || newArtistRole.trim() === '') return;
     
     try {
       if (artistToEdit) {
@@ -94,7 +78,7 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
   };
 
   const handleDeleteArtist = async () => {
-    if (!artistToDelete || !user) return;
+    if (!artistToDelete) return;
     
     try {
       await tourArtistsService.deleteTourArtist(artistToDelete);
@@ -123,16 +107,6 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
       <div className="tour-detail-container">
         <div style={{ textAlign: 'center', padding: '2rem' }}>
           Caricamento...
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="tour-detail-container">
-        <div style={{ textAlign: 'center', padding: '2rem' }}>
-          Effettua il login per vedere i dettagli del tour
         </div>
       </div>
     );

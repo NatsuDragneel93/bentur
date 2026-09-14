@@ -19,10 +19,11 @@ Per ora solo online; la gestione offline è prevista in futuro (tenerne conto ne
 - Deploy: `npm run build` poi `firebase deploy`
 
 ## Struttura
-- `src/services/firebase.service.ts` — singleton con `auth`, `provider`, `database`; esposto via `src/context/firebase.context.tsx` (`useFirebase`)
+- `src/services/firebase.service.ts` — istanze Firebase `auth`, `provider`, `database` (importate direttamente dai servizi)
+- `src/context/AuthProvider.tsx` — unico listener di `onAuthStateChanged`; hook in `src/hooks/useAuth.ts`: `useAuth()` (user, loading, signInWithGoogle, logout) e `useRequiredUser()` per le pagine sotto ProtectedRoute
 - `src/components/ProtectedRoute.tsx` — redirect a `/` se non loggato; `Header.tsx` — nav + menu profilo/logout
 - `src/services/*.service.ts` — un servizio singleton per collection Firestore
-- `src/pages/<sezione>/` — componente + SCSS; ogni pagina si iscrive da sola a `onAuthStateChanged`
+- `src/pages/<sezione>/` — componente + SCSS; le pagine non usano Firebase Auth direttamente
 
 ## Modello dati Firestore
 | Collection | Scope | Forma |

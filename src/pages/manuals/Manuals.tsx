@@ -1,16 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './Manuals.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faTrash, faEdit, faExternalLinkAlt } from '@fortawesome/free-solid-svg-icons';
-import { useFirebase } from '../../context/firebase.context';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { useRequiredUser } from '../../hooks/useAuth';
 import manualsService, { Manual } from '../../services/manuals.service';
 
 const Manuals: React.FC = () => {
   const [manuals, setManuals] = useState<Manual[]>([]);
-  const [user, setUser] = useState<User | null>(null);
+  const user = useRequiredUser();
   const [loading, setLoading] = useState(true);
-  const firebase = useFirebase();
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -21,32 +19,19 @@ const Manuals: React.FC = () => {
   });
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(firebase.auth, (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        loadUserManuals(currentUser.uid);
-      } else {
-        setManuals([]);
-        setLoading(false);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [firebase.auth]);
-
-  const loadUserManuals = async (userId: string) => {
+  const loadUserManuals = useCallback(async (userId: string) => {
     try {
-      setLoading(true);
       const userManuals = await manualsService.getUserManuals(userId);
       setManuals(userManuals);
     } catch (error) {
       console.error('Errore nel caricamento dei manuali:', error);
       alert('Errore nel caricamento dei manuali');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadUserManuals(user.uid).finally(() => setLoading(false));
+  }, [user.uid, loadUserManuals]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -54,11 +39,6 @@ const Manuals: React.FC = () => {
   };
 
   const handleAddOrEditManual = async () => {
-    if (!user) {
-      alert('Devi essere autenticato per gestire i manuali');
-      return;
-    }
-
     if (!newManual.title.trim() || !newManual.link.trim()) {
       alert('Titolo e link sono obbligatori');
       return;
@@ -85,7 +65,7 @@ const Manuals: React.FC = () => {
   };
 
   const handleDeleteManual = async () => {
-    if (!user || manualToDelete === null) return;
+    if (manualToDelete === null) return;
 
     try {
       await manualsService.deleteManual(manualToDelete);

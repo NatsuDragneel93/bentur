@@ -1,9 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './Tours.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
-import { useFirebase } from '../../context/firebase.context';
-import { User, onAuthStateChanged } from 'firebase/auth';
 import { useParams, useNavigate } from 'react-router-dom';
 import toursService, { Tour } from '../../services/tours.service';
 import TourDetail from './components/TourDetail';
@@ -11,9 +9,7 @@ import ArtistDetail from './components/ArtistDetail';
 
 const Tours: React.FC = () => {
   const [tours, setTours] = useState<Tour[]>([]);
-  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const firebase = useFirebase();
   const { tourId, artistId } = useParams();
   const navigate = useNavigate();
 
@@ -26,33 +22,21 @@ const Tours: React.FC = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [tourToDelete, setTourToDelete] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (firebase && firebase.auth) {
-      const unsubscribe = onAuthStateChanged(firebase.auth, (user: User | null) => {
-        setUser(user);
-        if (user) {
-          loadTours();
-        } else {
-          setTours([]);
-        }
-        setLoading(false);
-      });
-
-      return () => unsubscribe();
-    }
-  }, [firebase]);
-
-  const loadTours = async () => {
+  const loadTours = useCallback(async () => {
     try {
       const allTours = await toursService.getAllTours();
       setTours(allTours);
     } catch (error) {
       console.error('Error loading tours:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadTours().finally(() => setLoading(false));
+  }, [loadTours]);
 
   const handleAddOrEditTour = async () => {
-    if (newTourName.trim() === '' || !user) return;
+    if (newTourName.trim() === '') return;
     
     try {
       if (tourToEdit) {
@@ -88,7 +72,7 @@ const Tours: React.FC = () => {
   };
 
   const handleDeleteTour = async () => {
-    if (!tourToDelete || !user) return;
+    if (!tourToDelete) return;
     
     try {
       await toursService.deleteTour(tourToDelete);
@@ -113,18 +97,6 @@ const Tours: React.FC = () => {
         <div className="tours-container">
           <div style={{ textAlign: 'center', padding: '2rem' }}>
             Caricamento...
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="tours-page-container">
-        <div className="tours-container">
-          <div style={{ textAlign: 'center', padding: '2rem' }}>
-            Effettua il login per vedere i tours
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './ToBuy.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
@@ -8,15 +8,13 @@ import {
   Draggable,
   DropResult,
 } from '@hello-pangea/dnd';
-import { useFirebase } from '../../context/firebase.context';
-import { User, onAuthStateChanged } from 'firebase/auth';
+import { useRequiredUser } from '../../hooks/useAuth';
 import toBuyService, { type ToBuy, type ToBuyCategory } from '../../services/tobuy.service';
 
 const ToBuy: React.FC = () => {
   const [categories, setCategories] = useState<ToBuyCategory[]>([]);
-  const [user, setUser] = useState<User | null>(null);
+  const user = useRequiredUser();
   const [loading, setLoading] = useState(true);
-  const firebase = useFirebase();
   const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newTobuyText, setNewTobuyText] = useState('');
@@ -33,30 +31,18 @@ const ToBuy: React.FC = () => {
   const [categoryToEdit, setCategoryToEdit] = useState<ToBuyCategory | null>(null);
   const [editCategoryTitle, setEditCategoryTitle] = useState('');
 
-  useEffect(() => {
-    if (firebase && firebase.auth) {
-      const unsubscribe = onAuthStateChanged(firebase.auth, (user: User | null) => {
-        setUser(user);
-        if (user) {
-          loadCategories(user.uid);
-        } else {
-          setCategories([]);
-        }
-        setLoading(false);
-      });
-
-      return () => unsubscribe();
-    }
-  }, [firebase]);
-
-  const loadCategories = async (userId: string) => {
+  const loadCategories = useCallback(async (userId: string) => {
     try {
       const userCategories = await toBuyService.getUserCategories(userId);
       setCategories(userCategories);
     } catch (error) {
       console.error('Error loading categories:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadCategories(user.uid).finally(() => setLoading(false));
+  }, [user.uid, loadCategories]);
 
     // Filtra le categorie in base al searchTerm
     const filteredCategories = categories.filter(category =>
@@ -70,7 +56,7 @@ const ToBuy: React.FC = () => {
   
     // Gestione toggle completato
     const handleToggle = async (categoryId: string, tobuyId: string) => {
-      if (!user || !categoryId) return;
+      if (!categoryId) return;
       
       try {
         const category = categories.find(c => c.id === categoryId);
@@ -103,7 +89,7 @@ const ToBuy: React.FC = () => {
   
     // Gestione add/edit toBuy
     const handleAddOrEditTobuy = async () => {
-      if (newTobuyText.trim() === '' || expandedCategoryId === null || !user) return;
+      if (newTobuyText.trim() === '' || expandedCategoryId === null) return;
       
       try {
         if (editingTobuyId !== null) {
@@ -155,7 +141,7 @@ const ToBuy: React.FC = () => {
   
     // Gestione delete
     const handleDeleteTobuy = async () => {
-      if (!tobuyToDelete || !user) return;
+      if (!tobuyToDelete) return;
       
       try {
         await toBuyService.deleteToBuy(tobuyToDelete.categoryId, tobuyToDelete.tobuyId);
@@ -181,7 +167,7 @@ const ToBuy: React.FC = () => {
   
     // Drag & drop solo per la categoria espansa
     const handleDragEnd = async (result: DropResult) => {
-      if (!result.destination || expandedCategoryId === null || !user) return;
+      if (!result.destination || expandedCategoryId === null) return;
       
       const category = categories.find(c => c.id === expandedCategoryId);
       if (!category) return;
@@ -224,17 +210,6 @@ const ToBuy: React.FC = () => {
     );
   }
 
-  if (!user) {
-    return (
-      <div className="to-buy-page-container">
-        <div className="to-buy-container">
-          <div style={{ textAlign: 'center', padding: '2rem' }}>
-            Effettua il login per vedere i tuoi To Buy
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="to-buy-page-container">
@@ -397,7 +372,7 @@ const ToBuy: React.FC = () => {
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
-                if (newCategoryTitle.trim() === '' || !user) return;
+                if (newCategoryTitle.trim() === '') return;
                 
                 try {
                   await toBuyService.addCategory(user.uid, newCategoryTitle.trim());
@@ -522,7 +497,7 @@ const ToBuy: React.FC = () => {
                 type="button"
                 className="confirm-button"
                 onClick={async () => {
-                  if (!categoryToDelete || !user) return;
+                  if (!categoryToDelete) return;
                   
                   try {
                     await toBuyService.deleteCategory(categoryToDelete);
@@ -559,7 +534,7 @@ const ToBuy: React.FC = () => {
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
-                if (!categoryToEdit?.id || !user || !editCategoryTitle.trim()) return;
+                if (!categoryToEdit?.id || !editCategoryTitle.trim()) return;
                 
                 try {
                   await toBuyService.updateCategory(categoryToEdit.id, editCategoryTitle);

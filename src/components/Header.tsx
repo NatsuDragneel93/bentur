@@ -3,26 +3,15 @@ import './Header.scss';
 import { Link, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBars, faTimes, faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
-import { useFirebase } from '../context/firebase.context';
-import { onAuthStateChanged, signOut, User } from 'firebase/auth';
+import { useAuth } from '../hooks/useAuth';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
   const [imageLoadError, setImageLoadError] = useState(false);
-  const firebase = useFirebase();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const profileMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(firebase.auth, (currentUser) => {
-      setUser(currentUser);
-      setImageLoadError(false); // Reset image error when user changes
-    });
-
-    return () => unsubscribe();
-  }, [firebase.auth]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -57,7 +46,7 @@ const Header: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      await signOut(firebase.auth);
+      await logout();
       navigate('/');
     } catch (error) {
       console.error('Errore durante il logout:', error);

@@ -1,17 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './MyInventoryPersonal.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faTrash, faPlus } from '@fortawesome/free-solid-svg-icons';
-import { useFirebase } from '../../../context/firebase.context';
-import { User, onAuthStateChanged } from 'firebase/auth';
+import { useRequiredUser } from '../../../hooks/useAuth';
 import myInventoryPersonalService, { type InventoryCategory } from '../../../services/myInventoryPersonal.service';
 
 const MyInventoryPersonal: React.FC = () => {
     const [expanded, setExpanded] = useState<{ [key: string]: boolean }>({});
     const [categories, setCategories] = useState<InventoryCategory[]>([]);
-    const [user, setUser] = useState<User | null>(null);
+    const user = useRequiredUser();
     const [loading, setLoading] = useState(true);
-    const firebase = useFirebase();
     
     const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
     const [isEditCategoryModalOpen, setIsEditCategoryModalOpen] = useState(false);
@@ -33,30 +31,18 @@ const MyInventoryPersonal: React.FC = () => {
     const [newDataNumber, setNewDataNumber] = useState(1);
     const [categoryToAddData, setCategoryToAddData] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (firebase && firebase.auth) {
-            const unsubscribe = onAuthStateChanged(firebase.auth, (user: User | null) => {
-                setUser(user);
-                if (user) {
-                    loadCategories(user.uid);
-                } else {
-                    setCategories([]);
-                }
-                setLoading(false);
-            });
-
-            return () => unsubscribe();
-        }
-    }, [firebase]);
-
-    const loadCategories = async (userId: string) => {
+    const loadCategories = useCallback(async (userId: string) => {
         try {
             const userCategories = await myInventoryPersonalService.getUserCategories(userId);
             setCategories(userCategories);
         } catch (error) {
             console.error('Error loading inventory categories:', error);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        loadCategories(user.uid).finally(() => setLoading(false));
+    }, [user.uid, loadCategories]);
 
     const handleAccordionClick = (id: string) => {
         setExpanded(prev => ({
@@ -70,16 +56,6 @@ const MyInventoryPersonal: React.FC = () => {
             <div className="my-inventory-personal-page">
                 <div style={{ textAlign: 'center', padding: '2rem', color: 'white' }}>
                     Caricamento...
-                </div>
-            </div>
-        );
-    }
-
-    if (!user) {
-        return (
-            <div className="my-inventory-personal-page">
-                <div style={{ textAlign: 'center', padding: '2rem', color: 'white' }}>
-                    Effettua il login per vedere il tuo inventario
                 </div>
             </div>
         );
@@ -210,7 +186,7 @@ const MyInventoryPersonal: React.FC = () => {
                         <form
                             onSubmit={async (e) => {
                                 e.preventDefault();
-                                if (!user || !newCategoryTitle.trim()) return;
+                                if (!newCategoryTitle.trim()) return;
                                 
                                 try {
                                     const newCategory = await myInventoryPersonalService.addCategory(

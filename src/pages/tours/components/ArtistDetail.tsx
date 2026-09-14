@@ -9,8 +9,6 @@ import {
   faBoxes, 
   faCheckCircle 
 } from '@fortawesome/free-solid-svg-icons';
-import { useFirebase } from '../../../context/firebase.context';
-import { User, onAuthStateChanged } from 'firebase/auth';
 import tourArtistsService, { TourArtist } from '../../../services/tourArtists.service';
 
 interface ArtistDetailProps {
@@ -22,32 +20,21 @@ interface ArtistDetailProps {
 const ArtistDetail: React.FC<ArtistDetailProps> = ({ tourId, artistId, onBack }) => {
   const [artist, setArtist] = useState<TourArtist | null>(null);
   const [loading, setLoading] = useState(true);
-  const firebase = useFirebase();
 
   useEffect(() => {
-    if (firebase && firebase.auth) {
-      const unsubscribe = onAuthStateChanged(firebase.auth, (user: User | null) => {
-        if (user) {
-          loadArtistData();
-        } else {
-          setArtist(null);
-        }
-        setLoading(false);
-      });
+    const loadArtistData = async () => {
+      try {
+        const currentArtist = await tourArtistsService.getTourArtistById(artistId);
+        // L'artista deve appartenere al tour indicato nell'URL
+        setArtist(currentArtist?.tourId === tourId ? currentArtist : null);
+      } catch (error) {
+        console.error('Error loading artist data:', error);
+      }
+    };
 
-      return () => unsubscribe();
-    }
-  }, [firebase, tourId, artistId]);
-
-  const loadArtistData = async () => {
-    try {
-      const currentArtist = await tourArtistsService.getTourArtistById(artistId);
-      // L'artista deve appartenere al tour indicato nell'URL
-      setArtist(currentArtist?.tourId === tourId ? currentArtist : null);
-    } catch (error) {
-      console.error('Error loading artist data:', error);
-    }
-  };
+    setLoading(true);
+    loadArtistData().finally(() => setLoading(false));
+  }, [tourId, artistId]);
 
   if (loading) {
     return <div className="loading">Caricamento...</div>;
