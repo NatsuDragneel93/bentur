@@ -1,0 +1,52 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Collection in cui ogni documento appartiene a un utente tramite il campo userId
+    function isUserCollection(collection) {
+      return collection in [
+        'user_todos_personal',
+        'user_todos_tour',
+        'user_to_buy',
+        'user_inventory_personal',
+        'manuals',
+        'usefulContacts'
+      ];
+    }
+
+    match /{collection}/{docId} {
+      // Lettura ed eliminazione: solo il proprietario
+      allow read, delete: if isUserCollection(collection)
+        && signedIn()
+        && resource.data.userId == request.auth.uid;
+
+      // Creazione: solo a proprio nome
+      allow create: if isUserCollection(collection)
+        && signedIn()
+        && request.resource.data.userId == request.auth.uid;
+
+      // Modifica: solo il proprietario, senza poter cambiare il proprietario
+      allow update: if isUserCollection(collection)
+        && signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId;
+    }
+
+    // TEMPORANEO: tour e artisti non hanno ancora un proprietario.
+    // Verranno limitati a ownerId/memberIds nella fase 8b.
+    match /tours/{tourId} {
+      allow read, write: if signedIn();
+    }
+
+    match /tour_artists/{artistId} {
+      allow read, write: if signedIn();
+    }
+
+    // Tutto ciò che non è elencato sopra è negato
+  }
+}
