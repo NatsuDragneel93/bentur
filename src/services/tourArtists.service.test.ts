@@ -64,6 +64,16 @@ describe('tourArtistsService', () => {
     expect(mocked.getDocs).toHaveBeenCalledWith('collection:tours/t1/artists/a1/spare');
     expect(mocked.getDocs).toHaveBeenCalledWith('collection:tours/t1/artists/a1/consumables');
     expect(batch.delete.mock.calls.map(call => call[0])).toEqual(['tours/t1/artists/a1/todos/c1', 'tours/t1/artists/a1']);
+  });
+
+  it('elimina anche i Setup dell\'artista', async () => {
+    mocked.getDocs.mockImplementation((async (path: string) => ({
+      docs: path === 'collection:tours/t1/artists/a1/setups' ? [{ ref: 'tours/t1/artists/a1/setups/setupA' }] : [],
+    })) as unknown as typeof firestore.getDocs);
+
+    await tourArtistsService.deleteTourArtist('t1', 'a1');
+
+    expect(batch.delete.mock.calls.map(call => call[0])).toEqual(['tours/t1/artists/a1/setups/setupA', 'tours/t1/artists/a1']);
     expect(batch.commit).toHaveBeenCalledTimes(1);
   });
 

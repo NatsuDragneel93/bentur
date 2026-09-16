@@ -110,6 +110,40 @@ export const transformElement = (elements: StageElement[], id: string, result: T
     };
   });
 
+// Numero massimo di forme per setup (stesso limite in firestore.rules)
+export const MAX_STAGE_ELEMENTS = 500;
+
+const numberOr = (value: unknown, fallback: number): number =>
+  typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+
+const stringOr = (value: unknown, fallback: string): string => (typeof value === 'string' ? value : fallback);
+
+/**
+ * Converte i dati letti da Firestore in forme valide: scarta ciò che non è riconoscibile
+ * e completa i campi mancanti con i valori predefiniti del tipo.
+ */
+export const normalizeElements = (raw: unknown): StageElement[] => {
+  if (!Array.isArray(raw)) return [];
+
+  return raw.flatMap((item): StageElement[] => {
+    if (typeof item !== 'object' || item === null) return [];
+    const data = item as Record<string, unknown>;
+    if (typeof data.id !== 'string' || typeof data.type !== 'string' || !isShapeType(data.type)) return [];
+
+    const base = createElement(data.type, data.id, { x: numberOr(data.x, 0), y: numberOr(data.y, 0) });
+    return [{
+      ...base,
+      width: Math.max(MIN_ELEMENT_SIZE, numberOr(data.width, base.width)),
+      height: data.type === 'line' ? numberOr(data.height, base.height) : Math.max(MIN_ELEMENT_SIZE, numberOr(data.height, base.height)),
+      rotation: numberOr(data.rotation, 0),
+      fill: stringOr(data.fill, base.fill),
+      stroke: stringOr(data.stroke, base.stroke),
+      label: stringOr(data.label, ''),
+      labelColor: stringOr(data.labelColor, base.labelColor),
+    }];
+  });
+};
+
 // Scala per far entrare tutto il palco nello spazio disponibile
 export const fitScale = (availableWidth: number, availableHeight: number): number => {
   if (availableWidth <= 0 || availableHeight <= 0) return 1;

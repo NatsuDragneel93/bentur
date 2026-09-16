@@ -83,6 +83,22 @@ service cloud.firestore {
             && listName in ['spare', 'todos', 'consumables', 'showtime_checks']
             && request.auth.uid in tourData(tourId).memberIds;
         }
+
+        // Setup A/B dell'artista (disposizione del palco): un documento per setup.
+        // Li leggono e modificano tutti i membri del tour; chi salva deve indicarsi come autore.
+        // Nomi e limite allineati a SETUP_DOC_IDS (tours.service.ts) e MAX_STAGE_ELEMENTS (utils/stagePlot.ts)
+        match /setups/{setupId} {
+          allow read, delete: if signedIn()
+            && setupId in ['setupA', 'setupB']
+            && request.auth.uid in tourData(tourId).memberIds;
+
+          allow create, update: if signedIn()
+            && setupId in ['setupA', 'setupB']
+            && request.auth.uid in tourData(tourId).memberIds
+            && request.resource.data.updatedBy == request.auth.uid
+            && request.resource.data.elements is list
+            && request.resource.data.elements.size() <= 500;
+        }
       }
     }
 

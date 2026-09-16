@@ -5,6 +5,7 @@ import {
   isShapeType,
   MIN_ELEMENT_SIZE,
   moveElement,
+  normalizeElements,
   removeElement,
   spawnPosition,
   STAGE_HEIGHT,
@@ -72,6 +73,21 @@ describe('stagePlot', () => {
 
     expect(result.width).toBe(MIN_ELEMENT_SIZE);
     expect(result.height).toBe(elements[0].height);
+  });
+
+  it('normalizeElements scarta i dati non validi e completa i campi mancanti', () => {
+    const elements = normalizeElements([
+      { id: 'a', type: 'rect', x: 100, y: 50, label: 'Batteria', fill: '#00aaff' },
+      { id: 'b', type: 'hexagon', x: 1, y: 1 },
+      { type: 'circle' },
+      null,
+      { id: 'c', type: 'circle', x: 'dieci', y: 20, width: 2 },
+    ]);
+
+    expect(elements.map(e => e.id)).toEqual(['a', 'c']);
+    expect(elements[0]).toMatchObject({ x: 100, y: 50, width: 160, height: 90, rotation: 0, label: 'Batteria', fill: '#00aaff' });
+    expect(elements[1]).toMatchObject({ x: 0, y: 20, width: MIN_ELEMENT_SIZE, label: '' });
+    expect(normalizeElements(undefined)).toEqual([]);
   });
 
   it('fitScale fa entrare il palco nello spazio disponibile', () => {

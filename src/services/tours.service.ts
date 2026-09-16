@@ -28,20 +28,28 @@ export const ARTIST_LIST_SUBCOLLECTIONS = {
 
 export type ArtistListKey = keyof typeof ARTIST_LIST_SUBCOLLECTIONS;
 
+// Setup A/B di ogni artista: tours/{tourId}/artists/{artistId}/setups/{setupA|setupB}
+// (nomi elencati anche in firestore.rules)
+export const ARTIST_SETUPS_SUBCOLLECTION = 'setups';
+export const SETUP_KEYS = ['a', 'b'] as const;
+export type SetupKey = (typeof SETUP_KEYS)[number];
+export const SETUP_DOC_IDS: Record<SetupKey, string> = { a: 'setupA', b: 'setupB' };
+
 /**
- * Documenti da eliminare insieme a un artista: prima le categorie delle sue liste, poi l'artista.
+ * Documenti da eliminare insieme a un artista: prima liste e setup, poi l'artista.
  * Firestore non elimina da solo le sottocollection.
  */
 export const artistDocumentsToDelete = async (tourId: string, artistId: string): Promise<DocumentReference[]> => {
   const db = FirebaseService.database;
+  const subcollections = [...Object.values(ARTIST_LIST_SUBCOLLECTIONS), ARTIST_SETUPS_SUBCOLLECTION];
   const lists = await Promise.all(
-    Object.values(ARTIST_LIST_SUBCOLLECTIONS).map(subcollection =>
+    subcollections.map(subcollection =>
       getDocs(collection(db, TOURS_COLLECTION, tourId, TOUR_ARTISTS_SUBCOLLECTION, artistId, subcollection))
     )
   );
 
   return [
-    ...lists.flatMap(snapshot => snapshot.docs.map(categoryDoc => categoryDoc.ref)),
+    ...lists.flatMap(snapshot => snapshot.docs.map(childDoc => childDoc.ref)),
     doc(db, TOURS_COLLECTION, tourId, TOUR_ARTISTS_SUBCOLLECTION, artistId),
   ];
 };

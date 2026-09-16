@@ -83,7 +83,7 @@ class TourArtistsService {
     }
   }
 
-  // Elimina l'artista insieme alle sue liste (Spare, To Do, Consumabili, To Check Before Showtime)
+  // Elimina l'artista insieme alle sue liste (Spare, To Do, Consumabili, To Check Before Showtime) e ai Setup
   async deleteTourArtist(tourId: string, artistId: string): Promise<void> {
     try {
       await deleteInBatches(await artistDocumentsToDelete(tourId, artistId));
