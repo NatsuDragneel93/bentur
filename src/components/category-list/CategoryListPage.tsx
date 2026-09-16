@@ -2,22 +2,29 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DragDropContext, Draggable, Droppable, DropResult } from '@hello-pangea/dnd';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronDown, faEdit, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faChevronDown, faEdit, faPlus, faRotateLeft, faTrash } from '@fortawesome/free-solid-svg-icons';
 import './CategoryListPage.scss';
-import { useRequiredUser } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import type { CategoryListService, ItemCategory } from '../../services/categoryList.service';
-import { ListItem, moveItemById, NewItem, updateItemById } from '../../utils/categoryItems';
+import { ListItem, moveItemById, NewItem, updateAllItems, updateItemById } from '../../utils/categoryItems';
 import FormModal from '../ui/FormModal';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import LoadingState from '../ui/LoadingState';
 import FloatingAddButton from '../ui/FloatingAddButton';
-import type { CategoryListLabels, ItemType } from './types';
+import type { CategoryListLabels, ItemType, ResetAction } from './types';
 
 interface CategoryListPageProps<TItem extends ListItem, TForm> {
   service: CategoryListService<TItem>;
   itemType: ItemType<TItem, TForm>;
   labels: CategoryListLabels;
+  // Riga sotto il titolo, es. il nome dell'artista
+  subtitle?: string;
+  // Pulsante "indietro" sopra il titolo
+  back?: { label: string; onClick: () => void };
+  // Pulsanti per azzerare gli elementi (es. togliere le spunte)
+  resetAction?: ResetAction<TItem>;
+  // Indicazione accanto al titolo della categoria, visibile anche a categoria chiusa (es. "2 da ricomprare")
+  categoryBadge?: (items: TItem[]) => string | null;
 }
 
 interface ItemRef {
@@ -26,9 +33,16 @@ interface ItemRef {
 }
 
 // Pagina generica "categorie a fisarmonica con elementi riordinabili":
-// usata da To Do, To Buy e Inventario, cambiando solo servizio, tipo di elemento e testi.
-function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, labels }: CategoryListPageProps<TItem, TForm>) {
-  const user = useRequiredUser();
+// usata da To Do, To Buy, Inventario e liste degli artisti, cambiando solo servizio, tipo di elemento e testi.
+function CategoryListPage<TItem extends ListItem, TForm>({
+  service,
+  itemType,
+  labels,
+  subtitle,
+  back,
+  resetAction,
+  categoryBadge,
+}: CategoryListPageProps<TItem, TForm>) {
   const { showError } = useToast();
   const { t } = useTranslation();
   const [categories, setCategories] = useState<ItemCategory<TItem>[]>([]);
@@ -46,14 +60,17 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
   const [itemForm, setItemForm] = useState<TForm>(itemType.emptyForm);
   const [itemToDelete, setItemToDelete] = useState<ItemRef | null>(null);
 
+  // Conferma azzeramento: null = chiusa, categoryId null = tutte le categorie
+  const [resetTarget, setResetTarget] = useState<{ categoryId: string | null } | null>(null);
+
   const loadCategories = useCallback(async () => {
     try {
-      setCategories(await service.getUserCategories(user.uid));
+      setCategories(await service.getCategories());
     } catch (error) {
       console.error('Errore nel caricamento delle categorie:', error);
       showError(t('lists.loadError'));
     }
-  }, [service, user.uid, showError, t]);
+  }, [service, showError, t]);
 
   useEffect(() => {
     loadCategories().finally(() => setLoading(false));
@@ -132,7 +149,7 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
         await service.renameCategory(category.id, title);
         setCategories(current => current.map(c => (c.id === category.id ? { ...c, title } : c)));
       } else {
-        const created = await service.addCategory(user.uid, title);
+        const created = await service.addCategory(title);
         setCategories(current => [...current, created]);
         setExpandedIds(current => new Set(current).add(created.id));
       }
@@ -219,6 +236,27 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
     );
   };
 
+  const needsReset = (category: ItemCategory<TItem>) =>
+    resetAction !== undefined && category.items.some(resetAction.needsReset);
+
+  const handleReset = async () => {
+    if (!resetAction || !resetTarget) return;
+
+    const targets = categories.filter(category =>
+      needsReset(category) && (resetTarget.categoryId === null || category.id === resetTarget.categoryId)
+    );
+    setResetTarget(null);
+
+    await Promise.all(targets.map(category =>
+      changeItems(
+        category.id,
+        () => service.updateAllItems(category.id, resetAction.updates),
+        t('lists.resetError'),
+        items => updateAllItems(items, resetAction.updates)
+      )
+    ));
+  };
+
   const filteredCategories = categories.filter(category =>
     category.title.toLowerCase().includes(searchTerm.trim().toLowerCase())
   );
@@ -234,7 +272,13 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
   return (
     <div className="cl-page">
       <div className="cl-container">
+        {back && (
+          <button type="button" className="cl-back" onClick={back.onClick}>
+            <FontAwesomeIcon icon={faArrowLeft} /> {back.label}
+          </button>
+        )}
         <h1 className="cl-title">{labels.pageTitle}</h1>
+        {subtitle && <p className="cl-subtitle">{subtitle}</p>}
         <div className="cl-search">
           <input
             type="text"
@@ -245,10 +289,22 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
           />
         </div>
 
+        {resetAction && (
+          <button
+            type="button"
+            className="cl-reset-all"
+            onClick={() => setResetTarget({ categoryId: null })}
+            disabled={!categories.some(needsReset)}
+          >
+            <FontAwesomeIcon icon={faRotateLeft} /> {resetAction.allLabel}
+          </button>
+        )}
+
         <DragDropContext onDragEnd={handleDragEnd}>
           <ul className="cl-categories">
             {filteredCategories.map(category => {
               const isOpen = expandedIds.has(category.id);
+              const badge = categoryBadge?.(category.items);
 
               return (
                 <li key={category.id}>
@@ -260,9 +316,22 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
                       aria-expanded={isOpen}
                     >
                       <span>{category.title}</span>
+                      {badge && <span className="cl-category-badge">{badge}</span>}
                       <FontAwesomeIcon icon={faChevronDown} className={`cl-chevron ${isOpen ? 'cl-chevron--open' : ''}`} />
                     </button>
                     <div className="cl-category-actions">
+                      {resetAction && (
+                        <button
+                          type="button"
+                          className="cl-icon-button"
+                          onClick={() => setResetTarget({ categoryId: category.id })}
+                          disabled={!needsReset(category)}
+                          title={resetAction.categoryLabel(category.title)}
+                          aria-label={resetAction.categoryLabel(category.title)}
+                        >
+                          <FontAwesomeIcon icon={faRotateLeft} />
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="cl-icon-button"
@@ -384,6 +453,15 @@ function CategoryListPage<TItem extends ListItem, TForm>({ service, itemType, la
         onConfirm={handleDeleteItem}
         onCancel={() => setItemToDelete(null)}
       />
+
+      {resetAction && (
+        <ConfirmDialog
+          open={resetTarget !== null}
+          message={resetTarget?.categoryId ? resetAction.categoryConfirm : resetAction.allConfirm}
+          onConfirm={handleReset}
+          onCancel={() => setResetTarget(null)}
+        />
+      )}
     </div>
   );
 }

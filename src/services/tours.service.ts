@@ -7,14 +7,44 @@ import {
   updateDoc,
   query,
   where,
-  writeBatch
+  DocumentReference
 } from 'firebase/firestore';
 import FirebaseService from './firebase.service';
+import { deleteInBatches } from './batchDelete';
 
 // Percorsi Firestore dei tour. Gli artisti sono una sottocollection: tours/{tourId}/artists
 // (usati anche da scripts/migrate-tours.mjs: tenerli allineati)
 export const TOURS_COLLECTION = 'tours';
 export const TOUR_ARTISTS_SUBCOLLECTION = 'artists';
+
+// Liste di ogni artista: tours/{tourId}/artists/{artistId}/{sottocollection}
+// (i nomi sono elencati anche in firestore.rules)
+export const ARTIST_LIST_SUBCOLLECTIONS = {
+  spare: 'spare',
+  toDo: 'todos',
+  consumables: 'consumables',
+  checkBeforeShow: 'showtime_checks',
+} as const;
+
+export type ArtistListKey = keyof typeof ARTIST_LIST_SUBCOLLECTIONS;
+
+/**
+ * Documenti da eliminare insieme a un artista: prima le categorie delle sue liste, poi l'artista.
+ * Firestore non elimina da solo le sottocollection.
+ */
+export const artistDocumentsToDelete = async (tourId: string, artistId: string): Promise<DocumentReference[]> => {
+  const db = FirebaseService.database;
+  const lists = await Promise.all(
+    Object.values(ARTIST_LIST_SUBCOLLECTIONS).map(subcollection =>
+      getDocs(collection(db, TOURS_COLLECTION, tourId, TOUR_ARTISTS_SUBCOLLECTION, artistId, subcollection))
+    )
+  );
+
+  return [
+    ...lists.flatMap(snapshot => snapshot.docs.map(categoryDoc => categoryDoc.ref)),
+    doc(db, TOURS_COLLECTION, tourId, TOUR_ARTISTS_SUBCOLLECTION, artistId),
+  ];
+};
 
 export interface Tour {
   id: string;
@@ -94,16 +124,16 @@ class ToursService {
     }
   }
 
-  // Elimina un tour insieme ai suoi artisti, in un'unica operazione atomica
+  // Elimina un tour insieme ai suoi artisti e alle loro liste (il tour per ultimo: le regole dei figli lo leggono)
   async deleteTour(tourId: string): Promise<void> {
     try {
-      const batch = writeBatch(this.db);
       const artistsSnapshot = await getDocs(
         collection(this.db, TOURS_COLLECTION, tourId, TOUR_ARTISTS_SUBCOLLECTION)
       );
-      artistsSnapshot.docs.forEach(artistDoc => batch.delete(artistDoc.ref));
-      batch.delete(doc(this.db, TOURS_COLLECTION, tourId));
-      await batch.commit();
+      const artistsDocuments = await Promise.all(
+        artistsSnapshot.docs.map(artistDoc => artistDocumentsToDelete(tourId, artistDoc.id))
+      );
+      await deleteInBatches([...artistsDocuments.flat(), doc(this.db, TOURS_COLLECTION, tourId)]);
     } catch (error) {
       console.error('Error deleting tour:', error);
       throw error;

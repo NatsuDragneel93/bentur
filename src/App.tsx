@@ -4,6 +4,7 @@ import Login from './pages/login/Login';
 import Home from './pages/home/Home';
 import './App.scss';
 import Tours from './pages/tours/Tours';
+import ArtistList from './pages/tours/artist-lists/ArtistList';
 import ToDo from './pages/to-do/ToDo';
 import ToDoPersonal from './pages/to-do/personal/ToDoPersonal';
 import ToDoTour from './pages/to-do/tour/ToDoTour';
@@ -36,6 +37,7 @@ const App: React.FC = () => {
                       <Route path="/tours" element={<Tours />} />
                       <Route path="/tours/:tourId" element={<Tours />} />
                       <Route path="/tours/:tourId/artists/:artistId" element={<Tours />} />
+                      <Route path="/tours/:tourId/artists/:artistId/lists/:listPath" element={<ArtistList />} />
                       <Route path="/to-do" element={<ToDo />} />
                       <Route path="/to-do/personal" element={<ToDoPersonal />} />
                       <Route path="/to-do/tour" element={<ToDoTour />} />

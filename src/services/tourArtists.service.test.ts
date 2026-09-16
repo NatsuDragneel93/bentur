@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as firestore from 'firebase/firestore';
 import tourArtistsService from './tourArtists.service';
 
@@ -11,13 +11,18 @@ vi.mock('firebase/firestore', () => ({
   getDocs: vi.fn(),
   addDoc: vi.fn(),
   updateDoc: vi.fn(),
-  deleteDoc: vi.fn(),
   writeBatch: vi.fn(),
 }));
 
 const mocked = vi.mocked(firestore);
 
 describe('tourArtistsService', () => {
+  const batch = { delete: vi.fn(), commit: vi.fn() };
+
+  beforeEach(() => {
+    mocked.writeBatch.mockReturnValue(batch as unknown as firestore.WriteBatch);
+  });
+
   it('legge gli artisti dalla sottocollection del tour, ordinati per nome', async () => {
     mocked.getDocs.mockResolvedValue({
       docs: [
@@ -43,12 +48,23 @@ describe('tourArtistsService', () => {
     );
   });
 
-  it('modifica ed elimina usando il percorso del tour', async () => {
+  it('modifica usando il percorso del tour', async () => {
     await tourArtistsService.updateTourArtist('t1', 'a1', { name: 'Anna', role: 'Percussioni' });
-    await tourArtistsService.deleteTourArtist('t1', 'a1');
 
     expect(mocked.updateDoc).toHaveBeenCalledWith('tours/t1/artists/a1', expect.objectContaining({ role: 'Percussioni' }));
-    expect(mocked.deleteDoc).toHaveBeenCalledWith('tours/t1/artists/a1');
+  });
+
+  it('elimina l\'artista insieme alle categorie delle sue liste', async () => {
+    mocked.getDocs.mockImplementation((async (path: string) => ({
+      docs: path === 'collection:tours/t1/artists/a1/todos' ? [{ ref: 'tours/t1/artists/a1/todos/c1' }] : [],
+    })) as unknown as typeof firestore.getDocs);
+
+    await tourArtistsService.deleteTourArtist('t1', 'a1');
+
+    expect(mocked.getDocs).toHaveBeenCalledWith('collection:tours/t1/artists/a1/spare');
+    expect(mocked.getDocs).toHaveBeenCalledWith('collection:tours/t1/artists/a1/consumables');
+    expect(batch.delete.mock.calls.map(call => call[0])).toEqual(['tours/t1/artists/a1/todos/c1', 'tours/t1/artists/a1']);
+    expect(batch.commit).toHaveBeenCalledTimes(1);
   });
 
   it('getTourArtistById restituisce null se l\'artista non esiste nel tour', async () => {

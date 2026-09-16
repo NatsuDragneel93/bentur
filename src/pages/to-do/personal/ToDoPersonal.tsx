@@ -2,10 +2,13 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import CategoryListPage from '../../../components/category-list/CategoryListPage';
 import { checklistItemType } from '../../../components/category-list/itemTypes';
+import { useRequiredUser } from '../../../hooks/useAuth';
 import todoPersonalService from '../../../services/todoPersonal.service';
 
 const ToDoPersonal: React.FC = () => {
   const { t } = useTranslation();
+  const user = useRequiredUser();
+  const service = useMemo(() => todoPersonalService.forUser(user.uid), [user.uid]);
   const itemType = useMemo(() => checklistItemType(t('toDoPersonal.completedLabel')), [t]);
 
   const labels = {
@@ -16,7 +19,7 @@ const ToDoPersonal: React.FC = () => {
     emptyCategory: t('toDoPersonal.emptyCategory'),
   };
 
-  return <CategoryListPage service={todoPersonalService} itemType={itemType} labels={labels} />;
+  return <CategoryListPage service={service} itemType={itemType} labels={labels} />;
 };
 
 export default ToDoPersonal;

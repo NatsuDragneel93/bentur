@@ -6,6 +6,7 @@ import {
   normalizeOrder,
   removeItemById,
   sortByOrder,
+  updateAllItems,
   updateItemById,
 } from './categoryItems';
 
@@ -70,6 +71,15 @@ describe('categoryItems', () => {
     expect(() => updateItemById<Todo>(items, 'z', { completed: true })).toThrow('Elemento non trovato');
     expect(() => removeItemById(items, 'z')).toThrow('Elemento non trovato');
     expect(() => moveItemById(items, 'z', 0)).toThrow('Elemento non trovato');
+  });
+
+  it('updateAllItems applica la modifica a tutti gli elementi mantenendo l\'ordine', () => {
+    const items = [{ ...todo('a', 0), completed: true }, todo('b', 1)];
+
+    const result = updateAllItems(items, { completed: false });
+
+    expect(result.map(item => [item.id, item.order, item.completed])).toEqual([['a', 0, false], ['b', 1, false]]);
+    expect(items[0].completed).toBe(true);
   });
 
   it('generateItemId genera id diversi', () => {

@@ -43,7 +43,11 @@ export const updateItemById = <TItem extends ListItem>(
   return items.map(item => (item.id === itemId ? { ...item, ...updates } : item));
 };
 
-export const removeItemById = <TItem extends ListItem>(items: TItem[], itemId: string): TItem[] => {
+// Applica la stessa modifica a tutti gli elementi (es. togliere tutte le spunte)
+export const updateAllItems = <TItem extends ListItem>(items: TItem[], updates: Partial<NewItem<TItem>>): TItem[] =>
+  items.map(item => ({ ...item, ...updates }));
+
+export const removeItemById =<TItem extends ListItem>(items: TItem[], itemId: string): TItem[] => {
   indexOfItem(items, itemId);
   return normalizeOrder(items.filter(item => item.id !== itemId));
 };

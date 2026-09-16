@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
-import type { ChecklistItem } from '../../services/categoryList.service';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCartShopping } from '@fortawesome/free-solid-svg-icons';
+import type { ChecklistItem, ConsumableItem } from '../../services/categoryList.service';
 import type { ItemActions } from './types';
 
 // Componenti di visualizzazione/modifica usati dai tipi di elemento in itemTypes.tsx
@@ -12,6 +14,10 @@ export interface ChecklistForm {
 export interface InventoryForm {
   name: string;
   number: string;
+}
+
+export interface ConsumableForm extends InventoryForm {
+  toRestock: boolean;
 }
 
 interface FieldsProps<TForm> {
@@ -85,6 +91,45 @@ export const InventoryFields = ({ form, setForm }: FieldsProps<InventoryForm>) =
           value={form.number}
           onChange={e => setForm({ ...form, number: e.target.value })}
         />
+      </label>
+    </>
+  );
+};
+
+export const ConsumableContent = ({ item, update }: { item: ConsumableItem } & ItemActions<ConsumableItem>) => {
+  const { t } = useTranslation();
+  const toRestock = item.toRestock === true;
+
+  return (
+    <>
+      <span>{item.name} - {item.number}</span>
+      <button
+        type="button"
+        className={`cl-restock ${toRestock ? 'cl-restock--active' : ''}`}
+        onClick={() => update({ toRestock: !toRestock })}
+        aria-pressed={toRestock}
+        aria-label={t(toRestock ? 'consumableItem.unmarkToRestock' : 'consumableItem.markToRestock', { name: item.name })}
+      >
+        <FontAwesomeIcon icon={faCartShopping} />
+        {toRestock && t('consumableItem.toRestock')}
+      </button>
+    </>
+  );
+};
+
+export const ConsumableFields = ({ form, setForm }: FieldsProps<ConsumableForm>) => {
+  const { t } = useTranslation();
+
+  return (
+    <>
+      <InventoryFields form={form} setForm={inventory => setForm({ ...form, ...inventory })} />
+      <label className="checkbox-row">
+        <input
+          type="checkbox"
+          checked={form.toRestock}
+          onChange={e => setForm({ ...form, toRestock: e.target.checked })}
+        />
+        {t('consumableItem.toRestock')}
       </label>
     </>
   );

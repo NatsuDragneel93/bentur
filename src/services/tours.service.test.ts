@@ -60,18 +60,26 @@ describe('toursService', () => {
     expect(updates).not.toHaveProperty('memberIds');
   });
 
-  // Regressione: eliminando un tour gli artisti restavano orfani
-  it('deleteTour elimina il tour e tutti i suoi artisti in un unico batch', async () => {
-    mocked.getDocs.mockResolvedValue({
-      docs: [{ ref: 'tours/t1/artists/a1' }, { ref: 'tours/t1/artists/a2' }],
-    } as unknown as firestore.QuerySnapshot);
+  // Regressione: eliminando un tour gli artisti (e le loro liste) restavano orfani
+  it('deleteTour elimina artisti, liste degli artisti e infine il tour', async () => {
+    mocked.getDocs.mockImplementation((async (path: string) => {
+      const docs: Record<string, string[]> = {
+        'collection:tours/t1/artists': ['a1', 'a2'],
+        'collection:tours/t1/artists/a1/spare': ['s1'],
+        'collection:tours/t1/artists/a2/showtime_checks': ['c1'],
+      };
+      return { docs: (docs[path] ?? []).map(id => ({ id, ref: `${path.replace('collection:', '')}/${id}` })) };
+    }) as unknown as typeof firestore.getDocs);
 
     await toursService.deleteTour('t1');
 
-    expect(mocked.getDocs).toHaveBeenCalledWith('collection:tours/t1/artists');
-    expect(batch.delete).toHaveBeenCalledWith('tours/t1/artists/a1');
-    expect(batch.delete).toHaveBeenCalledWith('tours/t1/artists/a2');
-    expect(batch.delete).toHaveBeenCalledWith('tours/t1');
+    expect(batch.delete.mock.calls.map(call => call[0])).toEqual([
+      'tours/t1/artists/a1/spare/s1',
+      'tours/t1/artists/a1',
+      'tours/t1/artists/a2/showtime_checks/c1',
+      'tours/t1/artists/a2',
+      'tours/t1',
+    ]);
     expect(batch.commit).toHaveBeenCalledTimes(1);
   });
 

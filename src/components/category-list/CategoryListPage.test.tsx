@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import CategoryListPage from './CategoryListPage';
-import { checklistItemType, inventoryItemType } from './itemTypes';
-import type { CategoryListService, ChecklistItem, InventoryItem, ItemCategory } from '../../services/categoryList.service';
+import { checklistItemType, consumableItemType, inventoryItemType } from './itemTypes';
+import type { CategoryListService, ChecklistItem, ConsumableItem, InventoryItem, ItemCategory } from '../../services/categoryList.service';
 import { renderWithAuth } from '../../test/renderWithAuth';
 
 const labels = {
@@ -14,20 +14,20 @@ const labels = {
   emptyCategory: 'Nessun to do presente',
 };
 
-const fakeService = <TItem extends ChecklistItem | InventoryItem>() => ({
-  getUserCategories: vi.fn(),
+const fakeService = <TItem extends ChecklistItem | InventoryItem | ConsumableItem>() => ({
+  getCategories: vi.fn(),
   addCategory: vi.fn(),
   renameCategory: vi.fn(),
   deleteCategory: vi.fn(),
   addItem: vi.fn(),
   updateItem: vi.fn(),
+  updateAllItems: vi.fn(),
   deleteItem: vi.fn(),
   moveItem: vi.fn(),
 }) satisfies Record<keyof CategoryListService<TItem>, unknown>;
 
 const category = (id: string, title: string, items: ChecklistItem[]): ItemCategory<ChecklistItem> => ({
   id,
-  userId: 'user-1',
   title,
   items,
 });
@@ -56,14 +56,14 @@ describe('CategoryListPage', () => {
 
   beforeEach(() => {
     service = fakeService<ChecklistItem>();
-    service.getUserCategories.mockResolvedValue([cables, stage]);
+    service.getCategories.mockResolvedValue([cables, stage]);
   });
 
   it('carica le categorie dell\'utente e le espande al clic', async () => {
     renderChecklist(service);
 
     const toggle = await screen.findByRole('button', { name: 'Cavi' });
-    expect(service.getUserCategories).toHaveBeenCalledWith('user-1');
+    expect(service.getCategories).toHaveBeenCalledTimes(1);
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByText('Comprare XLR')).not.toBeInTheDocument();
 
@@ -98,7 +98,7 @@ describe('CategoryListPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Aggiungi categoria' }));
     await userEvent.type(screen.getByLabelText('Nome categoria:'), 'Backline{Enter}');
 
-    expect(service.addCategory).toHaveBeenCalledWith('user-1', 'Backline');
+    expect(service.addCategory).toHaveBeenCalledWith('Backline');
     expect(await screen.findByRole('button', { name: 'Backline' })).toHaveAttribute('aria-expanded', 'true');
   });
 
@@ -175,7 +175,7 @@ describe('CategoryListPage', () => {
     await userEvent.click(screen.getByRole('checkbox', { name: /Comprare XLR/ }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Errore nell\'aggiornamento dell\'elemento');
-    await waitFor(() => expect(service.getUserCategories).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(service.getCategories).toHaveBeenCalledTimes(2));
     expect(screen.getByRole('checkbox', { name: /Comprare XLR/ })).not.toBeChecked();
   });
 
@@ -194,8 +194,8 @@ describe('CategoryListPage', () => {
 
   it('funziona anche con elementi di inventario (nome e quantità)', async () => {
     const inventory = fakeService<InventoryItem>();
-    inventory.getUserCategories.mockResolvedValue([
-      { id: 'inv-1', userId: 'user-1', title: 'Microfoni', items: [{ id: 'i1', order: 0, name: 'SM58', number: 4 }] },
+    inventory.getCategories.mockResolvedValue([
+      { id: 'inv-1', title: 'Microfoni', items: [{ id: 'i1', order: 0, name: 'SM58', number: 4 }] },
     ]);
     inventory.updateItem.mockResolvedValue([{ id: 'i1', order: 0, name: 'SM58', number: 6 }]);
 
@@ -217,5 +217,100 @@ describe('CategoryListPage', () => {
 
     expect(inventory.updateItem).toHaveBeenCalledWith('inv-1', 'i1', { name: 'SM58', number: 6 });
     expect(await screen.findByText('SM58 - 6')).toBeInTheDocument();
+  });
+  describe('azzeramento spunte', () => {
+    const resetAction = {
+      updates: { completed: false },
+      needsReset: (item: ChecklistItem) => item.completed,
+      allLabel: 'Azzera tutte le spunte',
+      categoryLabel: (title: string) => `Azzera spunte di ${title}`,
+      allConfirm: 'Togliere tutte le spunte?',
+      categoryConfirm: 'Togliere le spunte della categoria?',
+    };
+    const done = category('cat-3', 'Monitor', [{ id: 'm1', order: 0, text: 'Check wedge', completed: true }]);
+
+    const renderWithReset = () =>
+      renderWithAuth(
+        <CategoryListPage
+          service={service as unknown as CategoryListService<ChecklistItem>}
+          itemType={checklistItemType('Già controllato')}
+          labels={labels}
+          resetAction={resetAction}
+        />
+      );
+
+    it('azzera le spunte di una sola categoria dopo conferma', async () => {
+      service.updateAllItems.mockResolvedValue(cables.items.map(i => ({ ...i, completed: false })));
+      renderWithReset();
+
+      expect(await screen.findByRole('button', { name: 'Azzera spunte di Palco' })).toBeDisabled();
+      await userEvent.click(screen.getByRole('button', { name: 'Azzera spunte di Cavi' }));
+      expect(screen.getByText('Togliere le spunte della categoria?')).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Sì' }));
+
+      expect(service.updateAllItems).toHaveBeenCalledTimes(1);
+      expect(service.updateAllItems).toHaveBeenCalledWith('cat-1', { completed: false });
+      await openCategory('Cavi');
+      expect(screen.getByRole('checkbox', { name: /Etichettare DI box/ })).not.toBeChecked();
+    });
+
+    it('azzera tutte le categorie con elementi spuntati', async () => {
+      service.getCategories.mockResolvedValue([cables, stage, done]);
+      service.updateAllItems.mockImplementation(async (categoryId: string) =>
+        (categoryId === 'cat-1' ? cables.items : done.items).map(i => ({ ...i, completed: false }))
+      );
+      renderWithReset();
+
+      await userEvent.click(await screen.findByRole('button', { name: /Azzera tutte le spunte/ }));
+      await userEvent.click(screen.getByRole('button', { name: 'Sì' }));
+
+      await waitFor(() => expect(service.updateAllItems).toHaveBeenCalledTimes(2));
+      expect(service.updateAllItems).toHaveBeenCalledWith('cat-1', { completed: false });
+      expect(service.updateAllItems).toHaveBeenCalledWith('cat-3', { completed: false });
+      expect(screen.getByRole('button', { name: /Azzera tutte le spunte/ })).toBeDisabled();
+    });
+  });
+
+  it('mostra il pulsante indietro e il sottotitolo', async () => {
+    const onBack = vi.fn();
+    renderWithAuth(
+      <CategoryListPage
+        service={service as unknown as CategoryListService<ChecklistItem>}
+        itemType={checklistItemType('Già completato')}
+        labels={labels}
+        subtitle="Anna"
+        back={{ label: 'Torna all\'artista', onClick: onBack }}
+      />
+    );
+
+    expect(await screen.findByText('Anna')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Torna all'artista/ }));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('consumabili: segna "da ricomprare" dalla lista e lo mostra nel badge della categoria', async () => {
+    const consumables = fakeService<ConsumableItem>();
+    const bag = { id: 'bag', title: 'Borsa', items: [{ id: 'c1', order: 0, name: 'Pile AA', number: 8 }] };
+    consumables.getCategories.mockResolvedValue([bag]);
+    consumables.updateItem.mockResolvedValue([{ ...bag.items[0], toRestock: true }]);
+
+    renderWithAuth(
+      <CategoryListPage
+        service={consumables as unknown as CategoryListService<ConsumableItem>}
+        itemType={consumableItemType}
+        labels={labels}
+        categoryBadge={items => {
+          const count = items.filter(i => i.toRestock).length;
+          return count > 0 ? `${count} da ricomprare` : null;
+        }}
+      />
+    );
+    await openCategory('Borsa');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Segna "Pile AA" da ricomprare' }));
+
+    expect(consumables.updateItem).toHaveBeenCalledWith('bag', 'c1', { toRestock: true });
+    expect(await screen.findByRole('button', { name: 'Segna "Pile AA" come disponibile' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('1 da ricomprare')).toBeInTheDocument();
   });
 });

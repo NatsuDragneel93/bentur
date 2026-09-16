@@ -1,10 +1,12 @@
 import {
   addDoc,
   collection,
+  CollectionReference,
   deleteDoc,
   doc,
   getDocs,
   query,
+  QueryConstraint,
   runTransaction,
   Timestamp,
   updateDoc,
@@ -19,6 +21,7 @@ import {
   NewItem,
   removeItemById,
   sortByOrder,
+  updateAllItems,
   updateItemById,
 } from '../utils/categoryItems';
 
@@ -34,9 +37,13 @@ export interface InventoryItem extends ListItem {
   number: number;
 }
 
+export interface ConsumableItem extends InventoryItem {
+  // Assente nei dati salvati prima dell'introduzione del flag: vale come false
+  toRestock?: boolean;
+}
+
 export interface ItemCategory<TItem extends ListItem> {
   id: string;
-  userId: string;
   title: string;
   items: TItem[];
   createdAt?: Timestamp;
@@ -44,34 +51,44 @@ export interface ItemCategory<TItem extends ListItem> {
 }
 
 export interface CategoryListService<TItem extends ListItem> {
-  getUserCategories(userId: string): Promise<ItemCategory<TItem>[]>;
-  addCategory(userId: string, title: string): Promise<ItemCategory<TItem>>;
+  getCategories(): Promise<ItemCategory<TItem>[]>;
+  addCategory(title: string): Promise<ItemCategory<TItem>>;
   renameCategory(categoryId: string, title: string): Promise<void>;
   deleteCategory(categoryId: string): Promise<void>;
   // Le operazioni sugli elementi restituiscono la lista aggiornata letta dal server
   addItem(categoryId: string, data: NewItem<TItem>): Promise<TItem[]>;
   updateItem(categoryId: string, itemId: string, updates: Partial<NewItem<TItem>>): Promise<TItem[]>;
+  updateAllItems(categoryId: string, updates: Partial<NewItem<TItem>>): Promise<TItem[]>;
   deleteItem(categoryId: string, itemId: string): Promise<TItem[]>;
   moveItem(categoryId: string, itemId: string, toIndex: number): Promise<TItem[]>;
 }
 
+// Dove stanno le categorie di una lista
+export interface CategoryScope {
+  collectionRef: CollectionReference;
+  // Filtri per leggere solo le categorie dell'ambito (es. quelle dell'utente)
+  constraints?: QueryConstraint[];
+  // Campi aggiunti a ogni nuova categoria (es. userId)
+  extraData?: Record<string, unknown>;
+}
+
 /**
  * Servizio per collection di "categorie con elementi": ogni documento è una categoria
- * dell'utente e contiene gli elementi in un array (campo `itemsField`).
+ * e contiene gli elementi in un array (campo `itemsField`).
  *
  * Ogni modifica agli elementi avviene in una transazione: Firestore rilegge il documento e,
  * se nel frattempo è cambiato (es. modifica da un altro dispositivo), ripete l'operazione
  * sui dati aggiornati. Così nessuna modifica concorrente viene persa.
  */
 export const createCategoryListService = <TItem extends ListItem>(
-  collectionName: string,
+  scope: CategoryScope,
   itemsField: string
 ): CategoryListService<TItem> => {
   const db = FirebaseService.database;
+  const { collectionRef, constraints = [], extraData = {} } = scope;
 
   const toCategory = (id: string, data: Record<string, unknown>): ItemCategory<TItem> => ({
     id,
-    userId: data.userId as string,
     title: data.title as string,
     items: sortByOrder((data[itemsField] as TItem[] | undefined) ?? []),
     createdAt: data.createdAt as Timestamp | undefined,
@@ -80,7 +97,7 @@ export const createCategoryListService = <TItem extends ListItem>(
 
   const mutateItems = (categoryId: string, mutate: (items: TItem[]) => TItem[]): Promise<TItem[]> =>
     runTransaction(db, async (transaction) => {
-      const categoryRef = doc(db, collectionName, categoryId);
+      const categoryRef = doc(collectionRef, categoryId);
       const snapshot = await transaction.get(categoryRef);
 
       if (!snapshot.exists()) {
@@ -93,8 +110,8 @@ export const createCategoryListService = <TItem extends ListItem>(
     });
 
   return {
-    async getUserCategories(userId) {
-      const snapshot = await getDocs(query(collection(db, collectionName), where('userId', '==', userId)));
+    async getCategories() {
+      const snapshot = await getDocs(query(collectionRef, ...constraints));
 
       return snapshot.docs
         .map(categoryDoc => toCategory(categoryDoc.id, categoryDoc.data()))
@@ -102,19 +119,19 @@ export const createCategoryListService = <TItem extends ListItem>(
         .sort((a, b) => (a.createdAt?.toMillis() ?? 0) - (b.createdAt?.toMillis() ?? 0));
     },
 
-    async addCategory(userId, title) {
+    async addCategory(title) {
       const now = Timestamp.now();
-      const data = { userId, title: title.trim(), [itemsField]: [], createdAt: now, updatedAt: now };
-      const categoryRef = await addDoc(collection(db, collectionName), data);
+      const data = { ...extraData, title: title.trim(), [itemsField]: [], createdAt: now, updatedAt: now };
+      const categoryRef = await addDoc(collectionRef, data);
       return toCategory(categoryRef.id, data);
     },
 
     async renameCategory(categoryId, title) {
-      await updateDoc(doc(db, collectionName, categoryId), { title: title.trim(), updatedAt: Timestamp.now() });
+      await updateDoc(doc(collectionRef, categoryId), { title: title.trim(), updatedAt: Timestamp.now() });
     },
 
     async deleteCategory(categoryId) {
-      await deleteDoc(doc(db, collectionName, categoryId));
+      await deleteDoc(doc(collectionRef, categoryId));
     },
 
     addItem: (categoryId, data) =>
@@ -123,6 +140,9 @@ export const createCategoryListService = <TItem extends ListItem>(
     updateItem: (categoryId, itemId, updates) =>
       mutateItems(categoryId, items => updateItemById(items, itemId, updates)),
 
+    updateAllItems: (categoryId, updates) =>
+      mutateItems(categoryId, items => updateAllItems(items, updates)),
+
     deleteItem: (categoryId, itemId) =>
       mutateItems(categoryId, items => removeItemById(items, itemId)),
 
@@ -130,3 +150,19 @@ export const createCategoryListService = <TItem extends ListItem>(
       mutateItems(categoryId, items => moveItemById(items, itemId, toIndex)),
   };
 };
+
+/**
+ * Liste personali: collection con un documento per categoria, di proprietà dell'utente (campo userId).
+ * Il servizio si ottiene per un utente preciso con forUser(uid).
+ */
+export const createUserCategoryListService = <TItem extends ListItem>(collectionName: string, itemsField: string) => ({
+  forUser: (userId: string): CategoryListService<TItem> =>
+    createCategoryListService<TItem>(
+      {
+        collectionRef: collection(FirebaseService.database, collectionName),
+        constraints: [where('userId', '==', userId)],
+        extraData: { userId },
+      },
+      itemsField
+    ),
+});

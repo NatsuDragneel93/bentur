@@ -74,6 +74,15 @@ service cloud.firestore {
 
         allow write: if signedIn()
           && tourData(tourId).ownerId == request.auth.uid;
+
+        // Liste dell'artista (Spare, To Do, Consumabili, To Check Before Showtime):
+        // le leggono e modificano tutti i membri del tour.
+        // Nomi allineati a ARTIST_LIST_SUBCOLLECTIONS in src/services/tours.service.ts
+        match /{listName}/{categoryId} {
+          allow read, write: if signedIn()
+            && listName in ['spare', 'todos', 'consumables', 'showtime_checks']
+            && request.auth.uid in tourData(tourId).memberIds;
+        }
       }
     }
 

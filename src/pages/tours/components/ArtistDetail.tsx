@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import './ArtistDetail.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -8,21 +9,27 @@ import {
   faTools,
   faClipboardList,
   faBoxes,
-  faCheckCircle
+  faCheckCircle,
+  IconDefinition
 } from '@fortawesome/free-solid-svg-icons';
 import tourArtistsService, { TourArtist } from '../../../services/tourArtists.service';
 import { useToast } from '../../../hooks/useToast';
 import LoadingState from '../../../components/ui/LoadingState';
+import type { ArtistListKey } from '../../../services/tours.service';
+import { artistListPath } from '../artist-lists/artistListPaths';
 
-// className mantiene i colori delle card definiti in ArtistDetail.scss
-const SECTIONS = [
+type SectionKey = 'setupA' | 'setupB' | ArtistListKey;
+
+// className mantiene i colori delle card definiti in ArtistDetail.scss.
+// listKey: la card apre la lista corrispondente; senza, la sezione non è ancora implementata
+const SECTIONS: { key: SectionKey; className: string; icon: IconDefinition; listKey?: ArtistListKey }[] = [
   { key: 'setupA', className: 'setup-a', icon: faCog },
   { key: 'setupB', className: 'setup-b', icon: faCog },
-  { key: 'spare', className: 'spare', icon: faTools },
-  { key: 'toDo', className: 'todo', icon: faClipboardList },
-  { key: 'consumables', className: 'consumabili', icon: faBoxes },
-  { key: 'checkBeforeShow', className: 'check-before', icon: faCheckCircle },
-] as const;
+  { key: 'spare', className: 'spare', icon: faTools, listKey: 'spare' },
+  { key: 'toDo', className: 'todo', icon: faClipboardList, listKey: 'toDo' },
+  { key: 'consumables', className: 'consumabili', icon: faBoxes, listKey: 'consumables' },
+  { key: 'checkBeforeShow', className: 'check-before', icon: faCheckCircle, listKey: 'checkBeforeShow' },
+];
 
 interface ArtistDetailProps {
   tourId: string;
@@ -35,6 +42,7 @@ const ArtistDetail: React.FC<ArtistDetailProps> = ({ tourId, artistId, onBack })
   const [loading, setLoading] = useState(true);
   const { showError, showToast } = useToast();
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const loadArtistData = async () => {
@@ -50,6 +58,15 @@ const ArtistDetail: React.FC<ArtistDetailProps> = ({ tourId, artistId, onBack })
     setLoading(true);
     loadArtistData().finally(() => setLoading(false));
   }, [tourId, artistId, showError, t]);
+
+  const openSection = (listKey?: ArtistListKey) => {
+    if (listKey) {
+      navigate(artistListPath(tourId, artistId, listKey));
+    } else {
+      // TODO: Setup A/B non ancora implementati
+      showToast(t('artistDetail.sectionComingSoon'));
+    }
+  };
 
   if (loading) {
     return (
@@ -81,8 +98,15 @@ const ArtistDetail: React.FC<ArtistDetailProps> = ({ tourId, artistId, onBack })
             <div
               key={section.key}
               className={`artist-section-card ${section.className}`}
-              // TODO: navigazione alle singole sezioni, non ancora implementate
-              onClick={() => showToast(t('artistDetail.sectionComingSoon'))}
+              role="button"
+              tabIndex={0}
+              onClick={() => openSection(section.listKey)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  openSection(section.listKey);
+                }
+              }}
             >
               <div className="section-icon">
                 <FontAwesomeIcon icon={section.icon} />

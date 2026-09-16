@@ -4,11 +4,11 @@ import {
   getDoc,
   getDocs,
   doc,
-  updateDoc,
-  deleteDoc
+  updateDoc
 } from 'firebase/firestore';
 import FirebaseService from './firebase.service';
-import { TOUR_ARTISTS_SUBCOLLECTION, TOURS_COLLECTION } from './tours.service';
+import { deleteInBatches } from './batchDelete';
+import { artistDocumentsToDelete, TOUR_ARTISTS_SUBCOLLECTION, TOURS_COLLECTION } from './tours.service';
 
 export interface TourArtist {
   id: string;
@@ -83,9 +83,10 @@ class TourArtistsService {
     }
   }
 
+  // Elimina l'artista insieme alle sue liste (Spare, To Do, Consumabili, To Check Before Showtime)
   async deleteTourArtist(tourId: string, artistId: string): Promise<void> {
     try {
-      await deleteDoc(this.artistDoc(tourId, artistId));
+      await deleteInBatches(await artistDocumentsToDelete(tourId, artistId));
     } catch (error) {
       console.error('Error deleting tour artist:', error);
       throw error;

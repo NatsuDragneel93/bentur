@@ -29,8 +29,10 @@ Per ora solo online; la gestione offline è prevista in futuro (tenerne conto ne
 - `src/i18n/index.ts` — configurazione i18next (lingua da localStorage `bentur.language`, poi browser, ripiego italiano); `LanguageSwitcher` nel menu profilo e nel login
 - `src/components/ProtectedRoute.tsx` — redirect a `/` se non loggato; `Header.tsx` — nav + menu profilo/logout
 - `src/services/*.service.ts` — un servizio singleton per collection Firestore
-- `src/services/categoryList.service.ts` — `createCategoryListService<TItem>(collection, itemsField)`: servizio generico per le collection "categoria con array di elementi"; ogni modifica agli elementi usa `runTransaction`. Logica pura sugli array in `src/utils/categoryItems.ts`
-- `src/components/category-list/` — `CategoryListPage` generica (categorie a fisarmonica, ricerca, drag & drop, aggiornamenti ottimistici) + tipi di elemento in `itemTypes.tsx` (`checklistItemType`, `inventoryItemType`). To Do Personal, To Buy e Inventory Personal sono solo configurazione (servizio + tipo + testi)
+- `src/services/categoryList.service.ts` — `createCategoryListService<TItem>(scope, itemsField)`: servizio generico per le collection "categoria con array di elementi", legato a un ambito (`collectionRef` + filtri + campi extra); ogni modifica agli elementi usa `runTransaction`. Liste personali: `createUserCategoryListService(collection, field).forUser(uid)`; liste artista: `artistLists.service.ts` → `.forArtist(tourId, artistId)`. Le pagine creano il servizio con `useMemo`. Logica pura sugli array in `src/utils/categoryItems.ts`
+- `src/services/batchDelete.ts` — `deleteInBatches` (gruppi da 500); eliminando tour/artisti si cancellano anche le liste degli artisti (`artistDocumentsToDelete` in `tours.service.ts`)
+- `src/components/category-list/` — `CategoryListPage` generica (categorie a fisarmonica, ricerca, drag & drop, aggiornamenti ottimistici) + tipi di elemento in `itemTypes.tsx` (`checklistItemType`, `inventoryItemType`, `consumableItemType` con flag `toRestock`). Prop opzionali: `back`, `subtitle`, `resetAction` (azzera spunte), `categoryBadge`. To Do Personal, To Buy, Inventory Personal e le liste artista sono solo configurazione (servizio + tipo + testi)
+- `src/pages/tours/artist-lists/` — `ArtistList` (rotta `/tours/:tourId/artists/:artistId/lists/:listPath`: `spare`, `to-do`, `consumables`, `check-before-show`) aperta dalle card di `ArtistDetail`; Setup A/B non ancora implementati
 - `src/pages/<sezione>/` — componente + SCSS; le pagine non usano Firebase Auth direttamente
 
 ## Modello dati Firestore
@@ -44,6 +46,8 @@ Per ora solo online; la gestione offline è prevista in futuro (tenerne conto ne
 | `usefulContacts` | per utente | `{name, category, phone, email, city, notes}` |
 | `tours` | membri (`memberIds` array-contains uid) | `{name, stagePlot, channelList, ownerId, memberIds}`; modifica/eliminazione solo `ownerId` |
 | `tours/{tourId}/artists` | membri del tour in lettura, proprietario in scrittura | `{name, role}` |
+| `tours/{t}/artists/{a}/spare`, `/consumables` | membri del tour in lettura **e scrittura** | categoria `{title, items: [{id,name,number,order}]}` (consumables anche `toRestock`) |
+| `tours/{t}/artists/{a}/todos`, `/showtime_checks` | membri del tour in lettura e scrittura | categoria `{title, items: [{id,text,completed,order}]}` |
 | `tour_artists` | **legacy**, negata dalle regole | vecchia collection globale degli artisti; si svuota con `scripts/migrate-tours.mjs --delete-legacy` |
 
 Gli item delle liste sono array dentro il documento categoria. Offline non richiesto: le modifiche agli array passano da transazioni Firestore (niente migrazione a subcollection). Nomi dei campi array diversi per collection (`todos`, `tobuys`, `data`): non rinominarli, i dati esistenti li usano.

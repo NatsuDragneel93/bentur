@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as firestore from 'firebase/firestore';
-import { ChecklistItem, createCategoryListService } from './categoryList.service';
+import { ChecklistItem, createUserCategoryListService } from './categoryList.service';
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn((_db, name: string) => `collection:${name}`),
-  doc: vi.fn((_db, name: string, id: string) => `${name}/${id}`),
+  doc: vi.fn((ref: string, id: string) => `${ref.replace('collection:', '')}/${id}`),
   query: vi.fn(() => 'query'),
   where: vi.fn(),
   getDocs: vi.fn(),
@@ -34,14 +34,14 @@ const mockTransaction = (items: ChecklistItem[] | null) => {
   return transaction;
 };
 
-describe('createCategoryListService', () => {
-  const service = createCategoryListService<ChecklistItem>('user_to_buy', 'tobuys');
+describe('createUserCategoryListService', () => {
+  const service = createUserCategoryListService<ChecklistItem>('user_to_buy', 'tobuys').forUser('user-1');
 
   beforeEach(() => {
     vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000000');
   });
 
-  it('getUserCategories legge solo le categorie dell\'utente, con elementi ordinati', async () => {
+  it('getCategories legge solo le categorie dell\'utente, con elementi ordinati', async () => {
     mocked.getDocs.mockResolvedValue({
       docs: [
         { id: 'b', data: () => ({ userId: 'user-1', title: 'B', tobuys: [item('y', 1), item('x', 0)], createdAt: { toMillis: () => 2 } }) },
@@ -49,7 +49,7 @@ describe('createCategoryListService', () => {
       ],
     } as unknown as firestore.QuerySnapshot);
 
-    const categories = await service.getUserCategories('user-1');
+    const categories = await service.getCategories();
 
     expect(mocked.where).toHaveBeenCalledWith('userId', '==', 'user-1');
     expect(categories.map(c => c.id)).toEqual(['a', 'b']);
@@ -57,10 +57,10 @@ describe('createCategoryListService', () => {
     expect(categories[1].items.map(i => i.id)).toEqual(['x', 'y']);
   });
 
-  it('addCategory crea il documento con il campo elementi della collection', async () => {
+  it('addCategory crea il documento dell\'utente con il campo elementi della collection', async () => {
     mocked.addDoc.mockResolvedValue({ id: 'new-cat' } as firestore.DocumentReference);
 
-    const category = await service.addCategory('user-1', '  Cavi  ');
+    const category = await service.addCategory('  Cavi  ');
 
     expect(mocked.addDoc).toHaveBeenCalledWith('collection:user_to_buy', expect.objectContaining({
       userId: 'user-1',
@@ -89,6 +89,15 @@ describe('createCategoryListService', () => {
     const items = await service.updateItem('cat-1', 'b', { completed: true });
 
     expect(items[1].completed).toBe(true);
+    expect(transaction.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('updateAllItems modifica tutti gli elementi in un\'unica transazione', async () => {
+    const transaction = mockTransaction([item('a', 0, true), item('b', 1, true)]);
+
+    const items = await service.updateAllItems('cat-1', { completed: false });
+
+    expect(items.map(i => i.completed)).toEqual([false, false]);
     expect(transaction.update).toHaveBeenCalledTimes(1);
   });
 

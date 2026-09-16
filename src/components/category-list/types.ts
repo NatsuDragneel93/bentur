@@ -26,3 +26,16 @@ export interface CategoryListLabels {
   deleteItemConfirm: string;
   emptyCategory: string;
 }
+
+// Azzeramento di tutti gli elementi, per categoria o per l'intera lista (es. togliere le spunte prima di ogni show)
+export interface ResetAction<TItem extends ListItem> {
+  // Modifica applicata a ogni elemento, es. { completed: false }
+  updates: Partial<NewItem<TItem>>;
+  // Elementi ancora da azzerare: se non ce ne sono il pulsante è disattivato
+  needsReset: (item: TItem) => boolean;
+  // Testi già tradotti
+  allLabel: string;
+  categoryLabel: (categoryTitle: string) => string;
+  allConfirm: string;
+  categoryConfirm: string;
+}
