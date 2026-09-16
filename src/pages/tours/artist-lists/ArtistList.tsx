@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import CategoryListPage from '../../../components/category-list/CategoryListPage';
 import { checklistItemType, consumableItemType, inventoryItemType } from '../../../components/category-list/itemTypes';
 import LoadingState from '../../../components/ui/LoadingState';
-import { useToast } from '../../../hooks/useToast';
 import {
   artistCheckBeforeShowService,
   artistConsumablesService,
@@ -12,9 +11,9 @@ import {
   artistToDoService,
 } from '../../../services/artistLists.service';
 import type { ConsumableItem } from '../../../services/categoryList.service';
-import tourArtistsService, { TourArtist } from '../../../services/tourArtists.service';
 import type { ArtistListKey } from '../../../services/tours.service';
 import { artistListKeyFromPath, artistPath } from './artistListPaths';
+import { useTourArtist } from '../useTourArtist';
 
 interface ListProps {
   tourId: string;
@@ -121,27 +120,8 @@ const LISTS: Record<ArtistListKey, React.FC<ListProps>> = {
 const ArtistList: React.FC = () => {
   const { tourId, artistId, listPath } = useParams();
   const navigate = useNavigate();
-  const { showError } = useToast();
   const { t } = useTranslation();
-  const [artist, setArtist] = useState<TourArtist | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!tourId || !artistId) return;
-
-    const loadArtist = async () => {
-      try {
-        // Se l'utente non è membro del tour la lettura fallisce: l'artista risulta non trovato
-        setArtist(await tourArtistsService.getTourArtistById(tourId, artistId));
-      } catch (error) {
-        console.error('Error loading artist data:', error);
-        showError(t('artistDetail.loadError'));
-      }
-    };
-
-    setLoading(true);
-    loadArtist().finally(() => setLoading(false));
-  }, [tourId, artistId, showError, t]);
+  const { artist, loading } = useTourArtist(tourId, artistId);
 
   const listKey = artistListKeyFromPath(listPath);
 

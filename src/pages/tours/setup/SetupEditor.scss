@@ -1,0 +1,179 @@
+// Prefisso "se-" (setup editor) per non collidere con le classi globali delle altre pagine
+
+.se-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 16px;
+  overflow: hidden;
+  background-color: black;
+  color: white;
+
+  @media (max-width: 768px) {
+    padding: 12px;
+    overflow-y: auto;
+  }
+}
+
+.se-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+}
+
+.se-heading {
+  flex: 1;
+  text-align: center;
+
+  h1 {
+    margin: 0;
+    font-size: 2rem;
+  }
+
+  p {
+    margin: 4px 0 0;
+    color: #aaaaaa;
+  }
+}
+
+.se-back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.5rem 1rem;
+  border: 1px solid #666666;
+  border-radius: 0.25rem;
+  background: #1a1a1a;
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+
+  &:hover {
+    background-color: #333333;
+    border-color: #999999;
+  }
+}
+
+.se-notice {
+  margin: 8px 0;
+  color: #e67e22;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.se-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 12px;
+
+  // Su cellulare la palette diventa una barra sotto il palco
+  @media (max-width: 768px) {
+    flex-direction: column-reverse;
+  }
+}
+
+.se-palette {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+  overflow-y: auto;
+
+  @media (max-width: 768px) {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+}
+
+.se-palette-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 72px;
+  padding: 8px;
+  border: 1px solid #444444;
+  border-radius: 6px;
+  background-color: #222222;
+  color: white;
+  font-size: 0.75rem;
+  cursor: grab;
+  touch-action: manipulation;
+
+  svg {
+    fill: #4a90d9;
+  }
+
+  &:hover {
+    background-color: #333333;
+  }
+}
+
+.se-workspace {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  gap: 8px;
+}
+
+.se-canvas-area {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  overflow: hidden;
+
+  @media (max-width: 768px) {
+    flex: none;
+    width: 100%;
+    // Palco 1000x600: su cellulare l'altezza segue la larghezza
+    aspect-ratio: 1000 / 600;
+  }
+}
+
+.se-canvas {
+  line-height: 0;
+}
+
+.se-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.se-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 0.375rem;
+  background-color: #222222;
+  color: white;
+  cursor: pointer;
+
+  &--danger {
+    background-color: #dc3545;
+
+    &:hover:not(:disabled) {
+      background-color: #a71d2a;
+    }
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}

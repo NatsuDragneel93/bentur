@@ -9,7 +9,7 @@ Per ora solo online; la gestione offline è prevista in futuro (tenerne conto ne
 - Firebase 11: Auth (solo Google popup) + Firestore. Config in `src/environment/firebaseConfig.ts`
 - Hosting: Firebase Hosting (progetto `bentur-c5eaa`, cartella `dist`, rewrite SPA)
 - i18n: react-i18next (IT/EN), testi in `src/i18n/locales/it.ts` (riferimento) ed `en.ts`
-- UI: FontAwesome per le icone, `@hello-pangea/dnd` per drag & drop; nessuna libreria di componenti (MUI rimosso)
+- UI: FontAwesome per le icone, `@hello-pangea/dnd` per drag & drop delle liste, Konva + react-konva per l'editor Setup (caricato con `React.lazy`); nessuna libreria di componenti (MUI rimosso)
 - Test: Vitest + React Testing Library (jsdom). Regole Firestore in `firestore.rules` (deploy: `firebase deploy --only firestore:rules`, lo fa l'utente)
 - Git: non fare mai commit/push/branch, l'utente committa da sé
 
@@ -32,7 +32,9 @@ Per ora solo online; la gestione offline è prevista in futuro (tenerne conto ne
 - `src/services/categoryList.service.ts` — `createCategoryListService<TItem>(scope, itemsField)`: servizio generico per le collection "categoria con array di elementi", legato a un ambito (`collectionRef` + filtri + campi extra); ogni modifica agli elementi usa `runTransaction`. Liste personali: `createUserCategoryListService(collection, field).forUser(uid)`; liste artista: `artistLists.service.ts` → `.forArtist(tourId, artistId)`. Le pagine creano il servizio con `useMemo`. Logica pura sugli array in `src/utils/categoryItems.ts`
 - `src/services/batchDelete.ts` — `deleteInBatches` (gruppi da 500); eliminando tour/artisti si cancellano anche le liste degli artisti (`artistDocumentsToDelete` in `tours.service.ts`)
 - `src/components/category-list/` — `CategoryListPage` generica (categorie a fisarmonica, ricerca, drag & drop, aggiornamenti ottimistici) + tipi di elemento in `itemTypes.tsx` (`checklistItemType`, `inventoryItemType`, `consumableItemType` con flag `toRestock`). Prop opzionali: `back`, `subtitle`, `resetAction` (azzera spunte), `categoryBadge`. To Do Personal, To Buy, Inventory Personal e le liste artista sono solo configurazione (servizio + tipo + testi)
-- `src/pages/tours/artist-lists/` — `ArtistList` (rotta `/tours/:tourId/artists/:artistId/lists/:listPath`: `spare`, `to-do`, `consumables`, `check-before-show`) aperta dalle card di `ArtistDetail`; Setup A/B non ancora implementati
+- `src/pages/tours/artist-lists/` — `ArtistList` (rotta `/tours/:tourId/artists/:artistId/lists/:listPath`: `spare`, `to-do`, `consumables`, `check-before-show`) aperta dalle card di `ArtistDetail`
+- `src/pages/tours/setup/` — editor Setup A/B (rotta `/tours/:tourId/artists/:artistId/setup/:setupKey`, `a`|`b`): `SetupEditor` (stato), `StageCanvas` (Konva), `ShapePalette`. Logica pura in `src/utils/stagePlot.ts` (palco logico 1000×600, coordinate = centro della forma). Nei test `react-konva` va mockato (jsdom non ha canvas). In sviluppo: salvataggio non ancora implementato
+- `src/pages/tours/useTourArtist.ts` — caricamento artista condiviso da dettaglio, liste e setup
 - `src/pages/<sezione>/` — componente + SCSS; le pagine non usano Firebase Auth direttamente
 
 ## Modello dati Firestore

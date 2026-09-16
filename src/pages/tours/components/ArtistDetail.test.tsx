@@ -12,7 +12,10 @@ vi.mock('../../../services/tourArtists.service', () => ({
 const renderDetail = () =>
   renderWithAuth(<ArtistDetail tourId="t1" artistId="a1" onBack={vi.fn()} />, {
     route: '/tours/t1/artists/a1',
-    extraRoutes: { '/tours/t1/artists/a1/lists/:listPath': <div>Lista aperta</div> },
+    extraRoutes: {
+      '/tours/t1/artists/a1/lists/:listPath': <div>Lista aperta</div>,
+      '/tours/t1/artists/a1/setup/b': <div>Editor setup b</div>,
+    },
   });
 
 describe('ArtistDetail', () => {
@@ -30,12 +33,11 @@ describe('ArtistDetail', () => {
     expect(await screen.findByText('Lista aperta')).toBeInTheDocument();
   });
 
-  it('le card Setup non ancora implementate mostrano un avviso', async () => {
+  it('la card Setup B apre l\'editor del setup', async () => {
     renderDetail();
 
-    await userEvent.click(await screen.findByRole('button', { name: /Setup A/ }));
+    await userEvent.click(await screen.findByRole('button', { name: /Setup B/ }));
 
-    expect(await screen.findByText('Sezione in arrivo')).toBeInTheDocument();
-    expect(screen.queryByText('Lista aperta')).not.toBeInTheDocument();
+    expect(await screen.findByText('Editor setup b')).toBeInTheDocument();
   });
 });

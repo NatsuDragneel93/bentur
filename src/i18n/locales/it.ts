@@ -199,7 +199,6 @@ const it = {
     back: 'Torna al Tour',
     notFound: 'Artista non trovato',
     loadError: "Errore nel caricamento dell'artista",
-    sectionComingSoon: 'Sezione in arrivo',
     sections: {
       setupA: { title: 'Setup A', description: 'Schema grafico principale' },
       setupB: { title: 'Setup B', description: 'Schema grafico alternativo' },
@@ -207,6 +206,24 @@ const it = {
       toDo: { title: 'To Do', description: 'Lista delle cose da fare' },
       consumables: { title: 'Consumabili', description: 'Materiali consumabili' },
       checkBeforeShow: { title: 'To Check Before Showtime', description: 'Controlli pre-spettacolo' },
+    },
+  },
+  setupEditor: {
+    back: "Torna all'artista",
+    titleA: 'Setup A',
+    titleB: 'Setup B',
+    previewNotice: 'Anteprima: le modifiche non vengono ancora salvate',
+    shapesTitle: 'Forme',
+    addShape: 'Aggiungi {{shape}}',
+    deleteShape: 'Elimina forma',
+    canvasLabel: 'Palco: trascina le forme per posizionarle',
+    shapes: {
+      circle: 'Cerchio',
+      square: 'Quadrato',
+      rect: 'Rettangolo',
+      triangle: 'Triangolo',
+      line: 'Linea',
+      text: 'Testo',
     },
   },
   artistLists: {

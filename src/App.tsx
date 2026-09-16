@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
 import Login from './pages/login/Login';
 import Home from './pages/home/Home';
@@ -18,6 +18,10 @@ import MyInventoryTour from './pages/my-inventory/tour/MyInventoryTour';
 import { AuthProvider } from './context/AuthProvider';
 import { ToastProvider } from './context/ToastProvider';
 import ProtectedRoute from './components/ProtectedRoute';
+import LoadingState from './components/ui/LoadingState';
+
+// L'editor dei Setup usa Konva (libreria pesante): viene scaricato solo quando si apre
+const SetupEditor = lazy(() => import('./pages/tours/setup/SetupEditor'));
 
 const App: React.FC = () => {
   return (
@@ -38,6 +42,14 @@ const App: React.FC = () => {
                       <Route path="/tours/:tourId" element={<Tours />} />
                       <Route path="/tours/:tourId/artists/:artistId" element={<Tours />} />
                       <Route path="/tours/:tourId/artists/:artistId/lists/:listPath" element={<ArtistList />} />
+                      <Route
+                        path="/tours/:tourId/artists/:artistId/setup/:setupKey"
+                        element={
+                          <Suspense fallback={<LoadingState />}>
+                            <SetupEditor />
+                          </Suspense>
+                        }
+                      />
                       <Route path="/to-do" element={<ToDo />} />
                       <Route path="/to-do/personal" element={<ToDoPersonal />} />
                       <Route path="/to-do/tour" element={<ToDoTour />} />

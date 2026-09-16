@@ -200,7 +200,6 @@ const en: typeof it = {
     back: 'Back to Tour',
     notFound: 'Artist not found',
     loadError: 'Could not load the artist',
-    sectionComingSoon: 'Section coming soon',
     sections: {
       setupA: { title: 'Setup A', description: 'Main stage layout' },
       setupB: { title: 'Setup B', description: 'Alternative stage layout' },
@@ -208,6 +207,24 @@ const en: typeof it = {
       toDo: { title: 'To Do', description: 'Things to do' },
       consumables: { title: 'Consumables', description: 'Consumable supplies' },
       checkBeforeShow: { title: 'To Check Before Showtime', description: 'Pre-show checks' },
+    },
+  },
+  setupEditor: {
+    back: 'Back to Artist',
+    titleA: 'Setup A',
+    titleB: 'Setup B',
+    previewNotice: 'Preview: changes are not saved yet',
+    shapesTitle: 'Shapes',
+    addShape: 'Add {{shape}}',
+    deleteShape: 'Delete shape',
+    canvasLabel: 'Stage: drag shapes to position them',
+    shapes: {
+      circle: 'Circle',
+      square: 'Square',
+      rect: 'Rectangle',
+      triangle: 'Triangle',
+      line: 'Line',
+      text: 'Text',
     },
   },
   artistLists: {
