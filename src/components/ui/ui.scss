@@ -1,182 +1,785 @@
-// Stili dei componenti condivisi. Prefisso "bt-" per non collidere con le classi globali delle pagine.
+// Stili dei componenti condivisi e del layout delle pagine (tema Nocturne).
+// Prefisso "bt-" per non collidere con le classi globali delle pagine.
+// Colori, spazi e raggi arrivano dai token di styles/nocturne.css.
 
-$bt-green: #004d25;
-$bt-green-hover: #003d1e;
-$bt-red: #dc3545;
-$bt-red-hover: #a71d2a;
-$bt-grey: #555555;
-$bt-grey-hover: #444444;
+// Passaggi di trasparenza del testo usati nel design
+@function ink($percent) {
+  @return color-mix(in srgb, var(--color-text) $percent, transparent);
+}
 
-.bt-button {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 5px;
-  color: white;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.2s;
+$bt-mobile: 768px;
+$bt-tablet: 1023px;
 
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+// --- Pulsanti: varianti che Nocturne non ha ---
+
+// Azione distruttiva: contorno e testo salmone
+.btn.bt-danger {
+  color: var(--bt-danger);
+  border-color: color-mix(in srgb, var(--bt-danger) 45%, transparent);
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--bt-danger) 12%, transparent);
   }
 
-  &--primary {
-    background-color: $bt-green;
-    &:hover:not(:disabled) { background-color: $bt-green-hover; }
-  }
-
-  &--danger {
-    background-color: $bt-red;
-    &:hover:not(:disabled) { background-color: $bt-red-hover; }
-  }
-
-  &--secondary {
-    background-color: $bt-grey;
-    &:hover:not(:disabled) { background-color: $bt-grey-hover; }
+  &:active:not(:disabled) {
+    background: color-mix(in srgb, var(--bt-danger) 22%, transparent);
   }
 }
 
-// Modale
-.bt-modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
+.btn-ghost.bt-danger {
+  border-color: transparent;
+}
+
+.btn:disabled:hover {
+  background: transparent;
+}
+
+.btn-icon svg {
+  font-size: 15px;
+}
+
+// Pulsanti di dimensione "grande" usati nelle intestazioni delle pagine
+.bt-btn-lg {
+  height: 44px;
+  padding-inline: 20px;
+  gap: 8px;
+}
+
+.bt-btn-md {
+  height: 40px;
+  padding-inline: 16px;
+  gap: 8px;
+}
+
+// --- Campi ---
+
+.field {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 16px;
-  background-color: rgba(0, 0, 0, 0.8);
+  flex-direction: column;
 }
 
-.bt-modal {
+.bt-field-error {
+  margin: 5px 0 0;
+  font-size: 13px;
+  color: var(--bt-danger);
+}
+
+.input[aria-invalid='true'] {
+  border-color: color-mix(in srgb, var(--bt-danger) 70%, transparent);
+}
+
+select.input {
+  appearance: none;
+  padding-right: 32px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, ink(60%) 50%),
+    linear-gradient(135deg, ink(60%) 50%, transparent 50%);
+  background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.input::placeholder {
+  color: ink(45%);
+}
+
+// Casella di spunta: input nativo nascosto, disegno con icona
+.bt-checkbox {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+
+  input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  &__box {
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid ink(40%);
+    border-radius: var(--radius-sm);
+  }
+
+  &__check {
+    font-size: 20px;
+    color: var(--color-accent);
+  }
+
+  input:focus-visible + * {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  &--large {
+    width: 22px;
+    height: 22px;
+
+    .bt-checkbox__box {
+      width: 20px;
+      height: 20px;
+    }
+
+    .bt-checkbox__check {
+      font-size: 22px;
+    }
+  }
+}
+
+// Riga "casella + testo" nei form
+.bt-check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+// Ricerca con lente
+.bt-search {
+  position: relative;
   width: 100%;
-  max-width: 450px;
-  max-height: calc(100vh - 32px);
-  overflow-y: auto;
-  padding: 20px;
-  box-sizing: border-box;
-  background-color: #111111;
-  border: 1px solid #333333;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-  color: white;
-  text-align: left;
+  max-width: 420px;
+
+  &__icon {
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    font-size: 15px;
+    color: ink(45%);
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+
+  .input {
+    height: 40px;
+    padding-left: 36px;
+  }
+}
+
+// Segmented: le opzioni Nocturne sono label con radio nascosto
+.seg {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.seg-opt {
+  position: relative;
+  white-space: nowrap;
+}
+
+// --- Card ---
+
+.card {
+  color: inherit;
+  text-decoration: none;
+}
+
+a.card:hover,
+.bt-row-card--link:hover {
+  color: inherit;
+}
+
+.bt-nav-card {
+  position: relative;
+  justify-content: space-between;
+  gap: 0;
+  min-height: 176px;
+  padding: 22px;
+  transition: box-shadow 120ms ease;
+
+  &:hover {
+    box-shadow: var(--shadow-md);
+  }
+
+  &__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  &__icon {
+    font-size: 26px;
+    color: var(--color-accent);
+  }
+
+  &__rule {
+    display: block;
+    width: 22px;
+    height: 2px;
+    margin-bottom: 12px;
+    background: var(--color-accent);
+
+    &--muted {
+      background: var(--color-neutral-700);
+    }
+  }
 
   &__title {
-    margin: 0 0 16px;
-    font-size: 1.5rem;
-    color: white;
+    display: block;
+    font-family: var(--font-heading);
+    font-weight: var(--font-heading-weight);
+    font-size: 23px;
+    line-height: 1.15;
   }
 
-  &__message {
-    margin: 0;
-    font-size: 1.1rem;
+  &__description {
+    display: block;
+    margin-top: 4px;
+    font-size: 13px;
+    color: ink(52%);
   }
 
-  &__form {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+  // Home: card più grandi
+  &--lg {
+    min-height: 196px;
+    padding: 24px;
 
-    label {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      font-weight: bold;
+    .bt-nav-card__icon {
+      font-size: 30px;
     }
 
-    input:not([type='checkbox']),
-    textarea,
-    select {
-      padding: 8px;
-      border: 1px solid #444444;
-      border-radius: 4px;
-      background-color: #222222;
-      color: white;
-      font-family: inherit;
-      font-size: 1rem;
+    .bt-nav-card__rule {
+      margin-bottom: 14px;
+    }
 
-      &:focus {
-        outline: none;
-        border-color: #2e8b57;
+    .bt-nav-card__title {
+      font-size: 26px;
+      line-height: 1.1;
+    }
+
+    .bt-nav-card__description {
+      margin-top: 6px;
+    }
+  }
+
+  @media (max-width: $bt-mobile) {
+    min-height: 132px;
+    padding: 16px;
+
+    .bt-nav-card__icon {
+      font-size: 24px;
+    }
+
+    .bt-nav-card__rule {
+      width: 18px;
+      margin-bottom: 10px;
+    }
+
+    .bt-nav-card__title {
+      font-size: 19px;
+    }
+  }
+}
+
+// Riga a tutta larghezza (tour, artisti): tutta la card è cliccabile, i pulsanti restano sopra
+.bt-row-card {
+  position: relative;
+  flex-direction: row;
+  align-items: center;
+  gap: 20px;
+  padding: 26px 24px;
+  transition: box-shadow 120ms ease;
+
+  &:hover {
+    box-shadow: var(--shadow-md);
+  }
+
+  &__leading {
+    flex-shrink: 0;
+    font-size: 24px;
+    color: var(--color-accent);
+  }
+
+  &__main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__link {
+    display: block;
+    color: inherit;
+    font-family: var(--font-heading);
+    font-weight: var(--font-heading-weight);
+    font-size: 24px;
+    line-height: 1.15;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+
+    &:hover {
+      color: inherit;
+    }
+
+    // Area cliccabile estesa a tutta la card
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: var(--radius-md);
+    }
+
+    &:focus-visible {
+      outline: none;
+
+      &::after {
+        outline: 2px solid var(--color-accent);
+        outline-offset: 2px;
       }
     }
+  }
 
-    textarea {
-      min-height: 80px;
-      resize: vertical;
+  &__meta {
+    margin-top: 4px;
+    font-size: 13px;
+    color: ink(52%);
+  }
+
+  &__trailing {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 8px;
+  }
+
+  // Pulsanti e tag sopra il link esteso
+  &__trailing > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  &__arrow {
+    margin-left: 12px;
+    font-size: 18px;
+    color: ink(40%);
+  }
+
+  &--compact {
+    padding: 20px 24px;
+
+    .bt-row-card__link {
+      font-size: 20px;
     }
 
-    .checkbox-row {
-      flex-direction: row;
-      align-items: center;
-      gap: 8px;
+    .bt-row-card__meta {
+      margin-top: 2px;
     }
+  }
+
+  @media (max-width: $bt-mobile) {
+    gap: 14px;
+    padding: 18px 16px;
+
+    &__link {
+      font-size: 19px;
+    }
+
+    &--compact .bt-row-card__link {
+      font-size: 17px;
+    }
+
+    &__arrow {
+      display: none;
+    }
+  }
+}
+
+// Avatar con iniziali (artisti)
+.bt-initials {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--color-neutral-900);
+  box-shadow: inset 0 0 0 1px var(--color-neutral-800);
+  color: var(--color-accent-300);
+  font-family: var(--font-heading);
+  font-size: 15px;
+}
+
+// --- Layout delle pagine ---
+
+.bt-page {
+  flex: 1;
+  width: 100%;
+  padding: 36px 56px;
+
+  @media (max-width: $bt-tablet) {
+    padding: 36px 32px;
+  }
+
+  // Su cellulare il pulsante principale è fissato in basso: spazio per non coprire il contenuto
+  @media (max-width: $bt-mobile) {
+    padding: 40px 20px 104px;
+  }
+}
+
+// Riga in alto: indietro (o marchio) a sinistra, avatar a destra
+.bt-topbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 40px;
+
+  &__spacer {
+    flex: 1;
+  }
+
+  &__back {
+    gap: 8px;
+    max-width: 60vw;
+
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  @media (max-width: $bt-mobile) {
+    margin-bottom: 24px;
+  }
+}
+
+.bt-brand {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  letter-spacing: 0.26em;
+  color: ink(45%);
+}
+
+// Titolo della pagina con eventuali azioni allineate a destra
+.bt-title-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 28px;
+
+  &__text {
+    min-width: 0;
   }
 
   &__actions {
     display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    margin-top: 20px;
+    flex-shrink: 0;
+    gap: 10px;
+  }
 
-    @media (max-width: 480px) {
-      flex-direction: column-reverse;
+  @media (max-width: $bt-mobile) {
+    flex-direction: column;
+    align-items: stretch;
+    margin-bottom: 20px;
+  }
+}
 
-      .bt-button {
-        width: 100%;
-      }
+.bt-page-title {
+  margin: 0;
+  font-size: 44px;
+  overflow-wrap: anywhere;
+
+  @media (max-width: $bt-mobile) {
+    font-size: 30px;
+  }
+}
+
+.bt-page-subtitle {
+  margin: 6px 0 0;
+  font-size: 15px;
+  color: ink(55%);
+}
+
+// Trattino + etichetta maiuscola sopra il titolo
+.bt-kicker {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+  font-family: var(--font-heading);
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+
+  &::before {
+    content: '';
+    flex-shrink: 0;
+    width: 26px;
+    height: 2px;
+    background: var(--color-accent);
+  }
+
+  @media (max-width: $bt-mobile) {
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+
+    &::before {
+      width: 20px;
     }
   }
 }
 
-// Stato di caricamento
+// Azione principale: nella riga del titolo, fissata in basso su cellulare
+.bt-primary-action {
+  @media (max-width: $bt-mobile) {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 50;
+    padding: 12px 20px calc(16px + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(to top, var(--color-bg) 70%, transparent);
+
+    .btn {
+      width: 100%;
+      height: 48px;
+    }
+  }
+}
+
+.bt-section-title {
+  margin: 0;
+  font-size: 26px;
+}
+
+.bt-empty {
+  margin: 0;
+  font-size: 14px;
+  color: ink(55%);
+}
+
+.bt-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+
+  @media (max-width: $bt-tablet) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: $bt-mobile) {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+.bt-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  &--tight {
+    gap: 10px;
+  }
+}
+
+// --- Avatar e menu utente ---
+
+.bt-user-menu {
+  position: relative;
+
+  &__button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    overflow: hidden;
+    border: none;
+    border-radius: 50%;
+    background: var(--color-accent-800);
+    color: var(--color-accent-100);
+    font-family: var(--font-heading);
+    font-size: 14px;
+    cursor: pointer;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    &:hover {
+      box-shadow: 0 0 0 2px var(--color-accent-700);
+    }
+  }
+
+  &__dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 220px;
+    max-width: 300px;
+    padding: 14px;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-lg);
+  }
+
+  &__name {
+    font-family: var(--font-heading);
+    font-size: 15px;
+    overflow-wrap: anywhere;
+  }
+
+  &__email {
+    font-size: 13px;
+    color: ink(55%);
+    overflow-wrap: anywhere;
+  }
+
+  &__logout {
+    justify-content: flex-start;
+    gap: 8px;
+  }
+}
+
+// --- Menu a tendina (es. filtro città) ---
+
+.bt-menu {
+  position: relative;
+  display: inline-flex;
+
+  &__button {
+    height: 40px;
+    gap: 8px;
+  }
+
+  &__caret {
+    font-size: 11px;
+    color: ink(55%);
+  }
+
+  &__list {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 200;
+    min-width: 200px;
+    max-height: 280px;
+    margin: 0;
+    padding: 6px;
+    overflow-y: auto;
+    list-style: none;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-lg);
+  }
+
+  &__option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    cursor: pointer;
+
+    &--active {
+      background: color-mix(in srgb, var(--color-text) 7%, transparent);
+    }
+
+    &[aria-selected='true'] {
+      color: var(--color-accent);
+    }
+  }
+
+  &__check {
+    width: 14px;
+    font-size: 12px;
+  }
+}
+
+// --- Dialoghi ---
+
+.dialog-backdrop {
+  z-index: 1000;
+  background: color-mix(in srgb, var(--color-neutral-900) 55%, transparent);
+}
+
+.dialog {
+  width: min(400px, 100%);
+  max-height: calc(100dvh - 32px);
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.dialog-title {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.dialog-body {
+  margin: 0;
+  opacity: 1;
+  color: ink(85%);
+}
+
+.dialog-actions {
+  flex-wrap: wrap;
+  margin-top: 4px;
+
+  .btn {
+    min-height: 36px;
+  }
+}
+
+.bt-dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+// Azioni impilate (es. conflitto nel Setup)
+.bt-dialog-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .btn {
+    min-height: 40px;
+  }
+}
+
+// --- Stato di caricamento ---
+
 .bt-loading {
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   min-height: 50vh;
-  color: white;
-  font-size: 1.1rem;
+  font-size: 15px;
+  color: ink(62%);
 }
 
-// Pulsante "+" fisso in basso a destra
-.bt-fab {
-  position: fixed;
-  right: 20px;
-  bottom: 20px;
-  z-index: 10;
-  width: 60px;
-  height: 60px;
-  padding: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border: 1px solid white;
-  border-radius: 50%;
-  background-color: #222222;
-  color: white;
-  font-size: 1.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-  cursor: pointer;
-  transition: background-color 0.3s, transform 0.2s;
+// --- Notifiche ---
 
-  &:hover {
-    background-color: $bt-green;
-    transform: scale(1.1);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-}
-
-// Notifiche
 .bt-toasts {
   position: fixed;
-  left: 50%;
   bottom: 20px;
+  left: 50%;
   z-index: 1100;
   display: flex;
   flex-direction: column;
@@ -190,58 +793,36 @@ $bt-grey-hover: #444444;
 .bt-toast {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  padding: 12px 16px;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  color: white;
+  padding: 12px 12px 12px 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+  font-size: 14px;
   pointer-events: auto;
 
-  &--success { background-color: $bt-green; }
-  &--error { background-color: $bt-red; }
-  &--info { background-color: #333333; }
+  &__icon {
+    flex-shrink: 0;
+    font-size: 16px;
+    color: var(--color-accent);
+  }
+
+  &__message {
+    flex: 1;
+  }
+
+  &--error {
+    box-shadow: inset 3px 0 0 var(--bt-danger), var(--shadow-lg);
+
+    .bt-toast__icon {
+      color: var(--bt-danger);
+    }
+  }
 
   &__close {
-    padding: 0 4px;
-    border: none;
-    background: transparent;
-    color: white;
-    font-size: 1.2rem;
-    line-height: 1;
-    cursor: pointer;
-  }
-}
-
-// Selettore lingua
-.bt-language {
-  display: inline-flex;
-  overflow: hidden;
-  border: 1px solid #555555;
-  border-radius: 6px;
-
-  &__option {
-    padding: 4px 10px;
-    border: none;
-    border-radius: 0;
-    background: transparent;
-    color: #cccccc;
-    font-size: 0.85rem;
-    font-weight: 600;
-    cursor: pointer;
-
-    &:hover {
-      border-color: transparent;
-      background-color: #333333;
-    }
-
-    &--active {
-      background-color: #004d25;
-      color: white;
-
-      &:hover {
-        background-color: #004d25;
-      }
-    }
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    color: ink(62%);
   }
 }

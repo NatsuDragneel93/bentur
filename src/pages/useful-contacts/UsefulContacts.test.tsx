@@ -48,9 +48,9 @@ describe('UsefulContacts', () => {
     await screen.findByText('Music Store');
 
     await user.click(screen.getByRole('button', { name: 'Aggiungi contatto' }));
-    await user.type(screen.getByLabelText('Nome:'), 'Riparazioni Rossi');
-    await user.selectOptions(screen.getByLabelText('Categoria:'), 'Tecnico/riparatore');
-    await user.type(screen.getByLabelText('Città:'), 'Torino');
+    await user.type(screen.getByLabelText('Nome'), 'Riparazioni Rossi');
+    await user.selectOptions(screen.getByLabelText('Categoria'), 'Tecnico/riparatore');
+    await user.type(screen.getByLabelText('Città'), 'Torino');
     await user.click(screen.getByRole('button', { name: 'Salva' }));
 
     expect(service.addContact).toHaveBeenCalledWith('user-1', {
@@ -70,10 +70,11 @@ describe('UsefulContacts', () => {
     await screen.findByText('Music Store');
 
     await user.click(screen.getByRole('button', { name: 'Aggiungi contatto' }));
-    await user.type(screen.getByLabelText('Nome:'), 'Senza categoria');
+    await user.type(screen.getByLabelText('Nome'), 'Senza categoria');
     await user.click(screen.getByRole('button', { name: 'Salva' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Nome e categoria sono obbligatori');
+    expect(screen.getByText('La categoria è obbligatoria')).toBeInTheDocument();
+    expect(screen.queryByText('Il nome è obbligatorio')).not.toBeInTheDocument();
     expect(service.addContact).not.toHaveBeenCalled();
   });
 });

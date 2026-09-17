@@ -1,32 +1,10 @@
 import React from 'react';
-import './ToDo.scss';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import ListHub from '../../components/list-hub/ListHub';
 
 const ToDo: React.FC = () => {
-  const navigate = useNavigate();
   const { t } = useTranslation();
-
-  return (
-    <div className="todo-page-container">
-      <div className="todo-cards-container">
-        <div
-          className="todo-card"
-          onClick={() => navigate('/to-do/personal')}
-          style={{ cursor: 'pointer' }}
-        >
-          <span>{t('hub.personal')}</span>
-        </div>
-        <div
-          className="todo-card"
-          onClick={() => navigate('/to-do/tour')}
-          style={{ cursor: 'pointer' }}
-        >
-          <span>{t('hub.tour')}</span>
-        </div>
-      </div>
-    </div>
-  );
+  return <ListHub title={t('nav.toDo')} basePath="/to-do" />;
 };
 
 export default ToDo;

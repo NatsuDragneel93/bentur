@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import Modal from './Modal';
+import Dialog from './Dialog';
+import Button from './Button';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 
 interface FormModalProps {
@@ -13,7 +14,7 @@ interface FormModalProps {
   children: React.ReactNode;
 }
 
-// Modale con form: gestisce invio con Enter, stato di salvataggio e blocco del doppio invio
+// Dialogo con form: gestisce invio con Enter, stato di salvataggio e blocco del doppio invio
 const FormModal: React.FC<FormModalProps> = ({
   open,
   title,
@@ -27,25 +28,26 @@ const FormModal: React.FC<FormModalProps> = ({
   const { pending, run } = useAsyncAction();
 
   return (
-    <Modal open={open} title={title} onClose={onClose} preventClose={pending}>
+    <Dialog open={open} title={title} onClose={onClose} preventClose={pending}>
       <form
-        className="bt-modal__form"
+        className="bt-dialog-form"
+        noValidate
         onSubmit={(event) => {
           event.preventDefault();
           run(onSubmit);
         }}
       >
         {children}
-        <div className="bt-modal__actions">
-          <button type="button" className="bt-button bt-button--secondary" onClick={onClose} disabled={pending}>
+        <div className="dialog-actions">
+          <Button onClick={onClose} disabled={pending}>
             {cancelLabel ?? t('common.cancel')}
-          </button>
-          <button type="submit" className="bt-button bt-button--primary" disabled={pending}>
+          </Button>
+          <Button type="submit" variant="primary" disabled={pending}>
             {pending ? t('common.saving') : submitLabel}
-          </button>
+          </Button>
         </div>
       </form>
-    </Modal>
+    </Dialog>
   );
 };
 

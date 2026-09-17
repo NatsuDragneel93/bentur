@@ -89,17 +89,17 @@ describe('SetupEditor', () => {
 
     // La nuova forma è selezionata: il pannello proprietà è aperto
     await userEvent.type(screen.getByLabelText('Nome'), 'Piatto');
-    await userEvent.click(screen.getByRole('button', { name: 'Colore forma: #ff6b6b' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Colore forma: #5d5294' }));
 
     const circle = shapes()[1];
     expect(within(circle).getByText('Piatto')).toBeInTheDocument();
-    expect(within(circle).getByTestId('shape-fill')).toHaveAttribute('data-fill', '#ff6b6b');
+    expect(within(circle).getByTestId('shape-fill')).toHaveAttribute('data-fill', '#5d5294');
 
     await userEvent.click(screen.getByRole('button', { name: /Salva/ }));
 
     expect(mockedSetups.saveSetup).toHaveBeenCalledWith(
       't1', 'a1', 'a',
-      [drums, expect.objectContaining({ type: 'circle', label: 'Piatto', fill: '#ff6b6b' })],
+      [drums, expect.objectContaining({ type: 'circle', label: 'Piatto', fill: '#5d5294' })],
       expect.objectContaining({ user: { uid: 'user-1', name: 'Mario Rossi' }, force: false })
     );
     expect(mockedSetups.saveSetup.mock.calls[0][4].baseUpdatedAt?.toMillis()).toBe(1000);
@@ -150,8 +150,8 @@ describe('SetupEditor', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Aggiungi Stella' }));
 
     const star = shapes()[1];
-    expect(within(star).getByTestId('shape-fill')).toHaveAttribute('data-fill', '#fcc419');
-    expect(screen.getByRole('heading', { name: 'Stella' })).toBeInTheDocument();
+    expect(within(star).getByTestId('shape-fill')).toHaveAttribute('data-fill', '#968ae0');
+    expect(screen.getByRole('heading', { name: 'Proprietà forma' })).toBeInTheDocument();
   });
 
   describe('salvataggio in conflitto', () => {
@@ -215,7 +215,7 @@ describe('SetupEditor', () => {
     renderEditor();
     await userEvent.click(await screen.findByRole('button', { name: 'Aggiungi Linea' }));
 
-    await userEvent.click(screen.getByRole('button', { name: /Torna all'artista/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Anna' }));
     await userEvent.click(screen.getByRole('button', { name: 'Esci senza salvare' }));
 
     expect(await screen.findByText('Dettaglio artista')).toBeInTheDocument();
@@ -225,7 +225,7 @@ describe('SetupEditor', () => {
     renderEditor();
     await screen.findByText('Kit principale');
 
-    await userEvent.click(screen.getByRole('button', { name: /Torna all'artista/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Anna' }));
 
     expect(await screen.findByText('Dettaglio artista')).toBeInTheDocument();
   });
@@ -274,7 +274,8 @@ describe('SetupEditor', () => {
     beforeEach(() => {
       localStorage.setItem(GESTURE_HELP_STORAGE_KEY, '1');
       vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
-        matches: query === '(max-width: 768px)',
+        // Un telefono rientra sia nel layout cellulare sia in quello compatto
+        matches: query === '(max-width: 768px)' || query === '(max-width: 1023px)',
         addEventListener: vi.fn(),
         removeEventListener: vi.fn(),
       })));

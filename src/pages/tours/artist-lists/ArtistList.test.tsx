@@ -66,7 +66,7 @@ describe('ArtistList', () => {
     renderList(listPath);
 
     expect(await screen.findByRole('heading', { name: title })).toBeInTheDocument();
-    expect(screen.getByText('Anna')).toBeInTheDocument();
+    expect(screen.getByText('Anna · Voce')).toBeInTheDocument();
     expect(service.forArtist).toHaveBeenCalledWith('t1', 'a1');
   });
 
@@ -78,7 +78,7 @@ describe('ArtistList', () => {
   it('torna al dettaglio dell\'artista', async () => {
     renderList('spare');
 
-    await userEvent.click(await screen.findByRole('button', { name: /Torna all'artista/ }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Anna' }));
 
     expect(await screen.findByText('Dettaglio artista')).toBeInTheDocument();
   });

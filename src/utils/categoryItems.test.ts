@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   appendItem,
+  categoryProgress,
   generateItemId,
   moveItemById,
   normalizeOrder,
@@ -84,5 +85,15 @@ describe('categoryItems', () => {
 
   it('generateItemId genera id diversi', () => {
     expect(generateItemId()).not.toBe(generateItemId());
+  });
+
+  it('categoryProgress distingue categorie vuote, da iniziare, a metà e completate', () => {
+    const done = (item: { completed: boolean }) => item.completed;
+    const item = (id: string, completed: boolean) => ({ id, order: 0, completed });
+
+    expect(categoryProgress([], done)).toEqual({ status: 'empty' });
+    expect(categoryProgress([item('a', false), item('b', false)], done)).toEqual({ status: 'open', count: 2 });
+    expect(categoryProgress([item('a', true), item('b', false), item('c', false)], done)).toEqual({ status: 'partial', done: 1, total: 3 });
+    expect(categoryProgress([item('a', true)], done)).toEqual({ status: 'done' });
   });
 });

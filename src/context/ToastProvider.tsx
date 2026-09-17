@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCheck, faCircleInfo, faTriangleExclamation, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { ToastContext, ToastContextValue, ToastType } from './toast.context';
+import IconButton from '../components/ui/IconButton';
 import '../components/ui/ui.scss';
 
 interface Toast {
@@ -10,6 +13,12 @@ interface Toast {
 }
 
 const TOAST_DURATION_MS = 4000;
+
+const TOAST_ICONS = {
+  success: faCheck,
+  error: faTriangleExclamation,
+  info: faCircleInfo,
+} as const;
 
 // Notifiche temporanee in basso allo schermo, al posto di alert()
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -51,10 +60,15 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             className={`bt-toast bt-toast--${toast.type}`}
             role={toast.type === 'error' ? 'alert' : 'status'}
           >
-            <span>{toast.message}</span>
-            <button type="button" className="bt-toast__close" onClick={() => dismiss(toast.id)} aria-label={t('common.closeNotification')}>
-              ×
-            </button>
+            <FontAwesomeIcon icon={TOAST_ICONS[toast.type]} className="bt-toast__icon" />
+            <span className="bt-toast__message">{toast.message}</span>
+            <IconButton
+              icon={faXmark}
+              variant="ghost"
+              className="bt-toast__close"
+              label={t('common.closeNotification')}
+              onClick={() => dismiss(toast.id)}
+            />
           </div>
         ))}
       </div>

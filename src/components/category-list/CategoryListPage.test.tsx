@@ -37,6 +37,7 @@ const cables = category('cat-1', 'Cavi', [
   { id: 't2', order: 1, text: 'Etichettare DI box', completed: true },
 ]);
 const stage = category('cat-2', 'Palco', []);
+const back = { label: 'Home', onClick: vi.fn() };
 
 const renderChecklist = (service: ReturnType<typeof fakeService<ChecklistItem>>) =>
   renderWithAuth(
@@ -44,6 +45,7 @@ const renderChecklist = (service: ReturnType<typeof fakeService<ChecklistItem>>)
       service={service as unknown as CategoryListService<ChecklistItem>}
       itemType={checklistItemType('Già completato')}
       labels={labels}
+      back={back}
     />
   );
 
@@ -96,7 +98,7 @@ describe('CategoryListPage', () => {
     await screen.findByRole('button', { name: 'Cavi' });
 
     await userEvent.click(screen.getByRole('button', { name: 'Aggiungi categoria' }));
-    await userEvent.type(screen.getByLabelText('Nome categoria:'), 'Backline{Enter}');
+    await userEvent.type(screen.getByLabelText('Nome categoria'), 'Backline{Enter}');
 
     expect(service.addCategory).toHaveBeenCalledWith('Backline');
     expect(await screen.findByRole('button', { name: 'Backline' })).toHaveAttribute('aria-expanded', 'true');
@@ -106,7 +108,7 @@ describe('CategoryListPage', () => {
     renderChecklist(service);
     await userEvent.click(await screen.findByRole('button', { name: 'Modifica categoria Cavi' }));
 
-    const input = screen.getByLabelText('Nome categoria:');
+    const input = screen.getByLabelText('Nome categoria');
     await userEvent.clear(input);
     await userEvent.type(input, 'Cavi audio{Enter}');
 
@@ -132,7 +134,7 @@ describe('CategoryListPage', () => {
     await openCategory('Cavi');
 
     await userEvent.click(screen.getByRole('button', { name: /Aggiungi To Do/ }));
-    await userEvent.type(screen.getByLabelText('Testo:'), 'Nastro americano');
+    await userEvent.type(screen.getByLabelText('Testo'), 'Nastro americano');
     await userEvent.click(screen.getByLabelText('Già completato'));
     await userEvent.click(screen.getByRole('button', { name: 'Aggiungi' }));
 
@@ -148,8 +150,13 @@ describe('CategoryListPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /Aggiungi To Do/ }));
     await userEvent.click(screen.getByRole('button', { name: 'Aggiungi' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Il testo è obbligatorio');
+    // Errore sotto al campo, che sparisce appena si scrive
+    expect(screen.getByText('Il testo è obbligatorio')).toBeInTheDocument();
+    expect(screen.getByLabelText('Testo')).toHaveAttribute('aria-invalid', 'true');
     expect(service.addItem).not.toHaveBeenCalled();
+
+    await userEvent.type(screen.getByLabelText('Testo'), 'Nastro');
+    expect(screen.queryByText('Il testo è obbligatorio')).not.toBeInTheDocument();
   });
 
   it('spunta un elemento subito, prima della risposta del server', async () => {
@@ -204,13 +211,14 @@ describe('CategoryListPage', () => {
         service={inventory as unknown as CategoryListService<InventoryItem>}
         itemType={inventoryItemType}
         labels={{ ...labels, editItem: 'Modifica elemento' }}
+        back={back}
       />
     );
     await openCategory('Microfoni');
     expect(screen.getByText('SM58 - 4')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Modifica elemento' }));
-    const quantity = screen.getByLabelText('Numero:');
+    const quantity = screen.getByLabelText('Numero');
     await userEvent.clear(quantity);
     await userEvent.type(quantity, '6');
     await userEvent.click(screen.getByRole('button', { name: 'Salva Modifiche' }));
@@ -236,6 +244,7 @@ describe('CategoryListPage', () => {
           itemType={checklistItemType('Già controllato')}
           labels={labels}
           resetAction={resetAction}
+          back={back}
         />
       );
 
@@ -271,20 +280,20 @@ describe('CategoryListPage', () => {
     });
   });
 
-  it('mostra il pulsante indietro e il sottotitolo', async () => {
+  it('mostra il pulsante indietro e il contesto sopra il titolo', async () => {
     const onBack = vi.fn();
     renderWithAuth(
       <CategoryListPage
         service={service as unknown as CategoryListService<ChecklistItem>}
         itemType={checklistItemType('Già completato')}
         labels={labels}
-        subtitle="Anna"
-        back={{ label: 'Torna all\'artista', onClick: onBack }}
+        kicker="Anna · Voce"
+        back={{ label: 'Anna', onClick: onBack }}
       />
     );
 
-    expect(await screen.findByText('Anna')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /Torna all'artista/ }));
+    expect(await screen.findByText('Anna · Voce')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Anna' }));
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
@@ -299,6 +308,7 @@ describe('CategoryListPage', () => {
         service={consumables as unknown as CategoryListService<ConsumableItem>}
         itemType={consumableItemType}
         labels={labels}
+        back={back}
         categoryBadge={items => {
           const count = items.filter(i => i.toRestock).length;
           return count > 0 ? `${count} da ricomprare` : null;

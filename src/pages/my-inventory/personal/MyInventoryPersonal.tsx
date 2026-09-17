@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import CategoryListPage from '../../../components/category-list/CategoryListPage';
 import { inventoryItemType } from '../../../components/category-list/itemTypes';
@@ -7,6 +8,7 @@ import myInventoryPersonalService from '../../../services/myInventoryPersonal.se
 
 const MyInventoryPersonal: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const user = useRequiredUser();
   const service = useMemo(() => myInventoryPersonalService.forUser(user.uid), [user.uid]);
 
@@ -18,7 +20,14 @@ const MyInventoryPersonal: React.FC = () => {
     emptyCategory: t('inventoryPersonal.emptyCategory'),
   };
 
-  return <CategoryListPage service={service} itemType={inventoryItemType} labels={labels} />;
+  return (
+    <CategoryListPage
+      service={service}
+      itemType={inventoryItemType}
+      labels={labels}
+      back={{ label: t('nav.inventory'), onClick: () => navigate('/my-inventory') }}
+    />
+  );
 };
 
 export default MyInventoryPersonal;

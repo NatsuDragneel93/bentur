@@ -29,15 +29,26 @@ export interface StageElement {
 
 type ElementDefaults = Pick<StageElement, 'width' | 'height' | 'fill' | 'stroke' | 'labelColor'>;
 
+// Toni del tema Nocturne usati per le forme (valori di styles/nocturne.css: Konva non legge le variabili CSS)
+export const STAGE_COLORS = {
+  accent500: '#968ae0',
+  accent700: '#5d5294',
+  neutral100: '#f3f5fe',
+  neutral500: '#9397ab',
+  neutral700: '#595d6c',
+  neutral900: '#292b31',
+  accent300: '#d2cefd',
+} as const;
+
 const DEFAULTS: Record<ShapeType, ElementDefaults> = {
-  // Colori pieni e vivaci; stroke non è più disegnato (resta nei dati per compatibilità)
-  circle: { width: 80, height: 80, fill: '#f1f3f5', stroke: 'transparent', labelColor: '#212529' },
-  square: { width: 80, height: 80, fill: '#51cf66', stroke: 'transparent', labelColor: '#212529' },
-  rect: { width: 160, height: 90, fill: '#339af0', stroke: 'transparent', labelColor: '#ffffff' },
-  triangle: { width: 90, height: 80, fill: '#ff922b', stroke: 'transparent', labelColor: '#212529' },
-  star: { width: 90, height: 90, fill: '#fcc419', stroke: 'transparent', labelColor: '#212529' },
-  line: { width: 200, height: 6, fill: '#e9ecef', stroke: 'transparent', labelColor: '#ffffff' },
-  text: { width: 160, height: 40, fill: 'transparent', stroke: 'transparent', labelColor: '#ffffff' },
+  // stroke non è più disegnato (resta nei dati per compatibilità)
+  circle: { width: 80, height: 80, fill: STAGE_COLORS.accent700, stroke: 'transparent', labelColor: STAGE_COLORS.neutral100 },
+  square: { width: 80, height: 80, fill: STAGE_COLORS.neutral700, stroke: 'transparent', labelColor: STAGE_COLORS.neutral100 },
+  rect: { width: 160, height: 90, fill: STAGE_COLORS.accent500, stroke: 'transparent', labelColor: STAGE_COLORS.neutral900 },
+  triangle: { width: 90, height: 80, fill: STAGE_COLORS.neutral500, stroke: 'transparent', labelColor: STAGE_COLORS.neutral900 },
+  star: { width: 90, height: 90, fill: STAGE_COLORS.accent500, stroke: 'transparent', labelColor: STAGE_COLORS.neutral900 },
+  line: { width: 200, height: 6, fill: STAGE_COLORS.neutral500, stroke: 'transparent', labelColor: STAGE_COLORS.neutral100 },
+  text: { width: 160, height: 40, fill: 'transparent', stroke: 'transparent', labelColor: STAGE_COLORS.neutral100 },
 };
 
 // Forme con proporzioni fisse durante il ridimensionamento
@@ -51,11 +62,13 @@ export const clamp = (value: number, min: number, max: number): number => Math.m
 // Lunghezza massima del nome di una forma
 export const MAX_LABEL_LENGTH = 60;
 
-// Colori proposti nel pannello proprietà (resta disponibile anche il selettore libero)
-export const COLOR_PRESETS = [
-  '#ffffff', '#adb5bd', '#212529', '#339af0', '#22b8cf',
-  '#51cf66', '#fcc419', '#ff922b', '#ff6b6b', '#cc5de8',
+// Colori proposti nel pannello proprietà (resta disponibile anche il selettore libero;
+// i colori già salvati non vengono convertiti)
+export const FILL_PRESETS: readonly string[] = [
+  STAGE_COLORS.accent500, STAGE_COLORS.accent700, STAGE_COLORS.neutral500, STAGE_COLORS.neutral700, STAGE_COLORS.neutral900,
 ];
+
+export const LABEL_PRESETS: readonly string[] = [STAGE_COLORS.neutral100, STAGE_COLORS.accent300, STAGE_COLORS.neutral900];
 
 export interface Point {
   x: number;

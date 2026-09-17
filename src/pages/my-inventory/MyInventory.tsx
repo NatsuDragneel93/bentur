@@ -1,32 +1,10 @@
 import React from 'react';
-import './MyInventory.scss';
-import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import ListHub from '../../components/list-hub/ListHub';
 
 const MyInventory: React.FC = () => {
-  const navigate = useNavigate();
   const { t } = useTranslation();
-
-  return (
-    <div className="my-inventory-page-container">
-      <div className="inventory-cards-container">
-        <div
-          className="inventory-card"
-          onClick={() => navigate('/my-inventory/personal')}
-          style={{ cursor: 'pointer' }}
-        >
-          <span>{t('hub.personal')}</span>
-        </div>
-        <div
-          className="inventory-card"
-          onClick={() => navigate('/my-inventory/tour')}
-          style={{ cursor: 'pointer' }}
-        >
-          <span>{t('hub.tour')}</span>
-        </div>
-      </div>
-    </div>
-  );
+  return <ListHub title={t('nav.inventory')} basePath="/my-inventory" />;
 };
 
 export default MyInventory;

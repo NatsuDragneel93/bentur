@@ -1,19 +1,18 @@
 import React from 'react';
-import './ToDoTour.scss';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Page, PageTitle, TopBar } from '../../../components/ui/PageLayout';
 
+// Sezione non ancora sviluppata
 const ToDoTour: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   return (
-    <div className="todo-tour-page">
-      <div className="todo-tour-container">
-        <h1>{t('toDoTour.title')}</h1>
-        <div className="todo-tour-content">
-          <p>{t('toDoTour.inProgress')}</p>
-        </div>
-      </div>
-    </div>
+    <Page>
+      <TopBar back={{ label: t('nav.toDo'), onClick: () => navigate('/to-do') }} />
+      <PageTitle title={t('toDoTour.title')} subtitle={t('toDoTour.inProgress')} />
+    </Page>
   );
 };
 

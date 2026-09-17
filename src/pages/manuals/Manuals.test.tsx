@@ -43,7 +43,7 @@ describe('Manuals', () => {
     await user.type(screen.getByPlaceholderText('Cerca manuali...'), 'digico');
     await user.click(screen.getByRole('button', { name: /Modifica/ }));
 
-    const titleInput = screen.getByLabelText('Titolo:');
+    const titleInput = screen.getByLabelText('Titolo');
     expect(titleInput).toHaveValue('DiGiCo SD12');
     await user.clear(titleInput);
     await user.type(titleInput, 'DiGiCo SD12 v2');
@@ -82,10 +82,11 @@ describe('Manuals', () => {
     await screen.findByText('Yamaha CL5');
 
     await user.click(screen.getByRole('button', { name: 'Aggiungi manuale' }));
-    await user.type(screen.getByLabelText('Titolo:'), 'Solo titolo');
+    await user.type(screen.getByLabelText('Titolo'), 'Solo titolo');
     await user.click(screen.getByRole('button', { name: 'Aggiungi' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Titolo e link sono obbligatori');
+    expect(screen.getByText('Il link è obbligatorio')).toBeInTheDocument();
+    expect(screen.queryByText('Il titolo è obbligatorio')).not.toBeInTheDocument();
     expect(service.addManual).not.toHaveBeenCalled();
   });
 });

@@ -60,3 +60,22 @@ export const moveItemById = <TItem extends ListItem>(items: TItem[], itemId: str
   result.splice(target, 0, moved);
   return normalizeOrder(result);
 };
+
+export type CategoryProgress =
+  | { status: 'empty' }
+  | { status: 'open'; count: number }
+  | { status: 'partial'; done: number; total: number }
+  | { status: 'done' };
+
+// Avanzamento di una categoria con spunte: nessuna spunta, alcune, tutte
+export const categoryProgress = <TItem extends ListItem>(
+  items: TItem[],
+  isCompleted: (item: TItem) => boolean
+): CategoryProgress => {
+  const total = items.length;
+  const done = items.filter(isCompleted).length;
+  if (total === 0) return { status: 'empty' };
+  if (done === 0) return { status: 'open', count: total };
+  if (done === total) return { status: 'done' };
+  return { status: 'partial', done, total };
+};

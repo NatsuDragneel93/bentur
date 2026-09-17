@@ -1,28 +1,25 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { SUPPORTED_LANGUAGES } from '../i18n';
-import './ui/ui.scss';
+import { SUPPORTED_LANGUAGES, SupportedLanguage } from '../i18n';
+import Segmented from './ui/Segmented';
 
 // Selettore IT/EN. La scelta viene salvata sul dispositivo dal language detector.
-const LanguageSwitcher: React.FC = () => {
+const LanguageSwitcher: React.FC<{ className?: string }> = ({ className }) => {
   const { t, i18n } = useTranslation();
-  const current = i18n.resolvedLanguage;
+  const current = (i18n.resolvedLanguage ?? 'it') as SupportedLanguage;
 
   return (
-    <div className="bt-language" role="group" aria-label={t('language.label')}>
-      {SUPPORTED_LANGUAGES.map(language => (
-        <button
-          key={language}
-          type="button"
-          className={`bt-language__option ${current === language ? 'bt-language__option--active' : ''}`}
-          aria-pressed={current === language}
-          title={t(`language.${language}`)}
-          onClick={() => i18n.changeLanguage(language)}
-        >
-          {language.toUpperCase()}
-        </button>
-      ))}
-    </div>
+    <Segmented
+      className={className}
+      ariaLabel={t('language.label')}
+      value={current}
+      onChange={language => i18n.changeLanguage(language)}
+      options={SUPPORTED_LANGUAGES.map(language => ({
+        value: language,
+        label: language.toUpperCase(),
+        title: t(`language.${language}`),
+      }))}
+    />
   );
 };
 

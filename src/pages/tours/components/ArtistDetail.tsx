@@ -1,36 +1,35 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
-import './ArtistDetail.scss';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faArrowLeft,
-  faCog,
-  faTools,
-  faClipboardList,
-  faBoxes,
-  faCheckCircle,
-  IconDefinition
+  faCircleCheck,
+  faLayerGroup,
+  faListCheck,
+  faSliders,
+  faWrench,
+  IconDefinition,
 } from '@fortawesome/free-solid-svg-icons';
 import LoadingState from '../../../components/ui/LoadingState';
+import { NavCard } from '../../../components/ui/Card';
+import { Page, TopBar } from '../../../components/ui/PageLayout';
 import type { ArtistListKey } from '../../../services/tours.service';
 import { artistListPath } from '../artist-lists/artistListPaths';
 import { artistSetupPath, SetupKey } from '../setup/setupPaths';
 import { useTourArtist } from '../useTourArtist';
+import './ArtistDetail.scss';
 
 type SectionKey = 'setupA' | 'setupB' | ArtistListKey;
 
 const setupSection = (setupKey: SetupKey) => (tourId: string, artistId: string) => artistSetupPath(tourId, artistId, setupKey);
 const listSection = (listKey: ArtistListKey) => (tourId: string, artistId: string) => artistListPath(tourId, artistId, listKey);
 
-// className mantiene i colori delle card definiti in ArtistDetail.scss; path = pagina aperta dalla card
-const SECTIONS: { key: SectionKey; className: string; icon: IconDefinition; path: (tourId: string, artistId: string) => string }[] = [
-  { key: 'setupA', className: 'setup-a', icon: faCog, path: setupSection('a') },
-  { key: 'setupB', className: 'setup-b', icon: faCog, path: setupSection('b') },
-  { key: 'spare', className: 'spare', icon: faTools, path: listSection('spare') },
-  { key: 'toDo', className: 'todo', icon: faClipboardList, path: listSection('toDo') },
-  { key: 'consumables', className: 'consumabili', icon: faBoxes, path: listSection('consumables') },
-  { key: 'checkBeforeShow', className: 'check-before', icon: faCheckCircle, path: listSection('checkBeforeShow') },
+// Una famiglia di card uguali, distinte solo dall'icona; path = pagina aperta dalla card
+const SECTIONS: { key: SectionKey; icon: IconDefinition; path: (tourId: string, artistId: string) => string }[] = [
+  { key: 'setupA', icon: faSliders, path: setupSection('a') },
+  { key: 'setupB', icon: faSliders, path: setupSection('b') },
+  { key: 'spare', icon: faWrench, path: listSection('spare') },
+  { key: 'toDo', icon: faListCheck, path: listSection('toDo') },
+  { key: 'consumables', icon: faLayerGroup, path: listSection('consumables') },
+  { key: 'checkBeforeShow', icon: faCircleCheck, path: listSection('checkBeforeShow') },
 ];
 
 interface ArtistDetailProps {
@@ -42,60 +41,37 @@ interface ArtistDetailProps {
 const ArtistDetail: React.FC<ArtistDetailProps> = ({ tourId, artistId, onBack }) => {
   const { artist, loading } = useTourArtist(tourId, artistId);
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  // Il nome del tour non è caricato qui: etichetta fissa
+  const back = { label: t('nav.tours'), onClick: onBack };
 
-  if (loading) {
+  if (loading || !artist) {
     return (
-      <div className="artist-detail-container">
-        <LoadingState />
-      </div>
+      <Page>
+        <TopBar back={back} />
+        {loading ? <LoadingState /> : <p className="bt-empty">{t('artistDetail.notFound')}</p>}
+      </Page>
     );
   }
 
-  if (!artist) {
-    return <div className="error">{t('artistDetail.notFound')}</div>;
-  }
-
   return (
-    <div className="artist-detail-container">
-      <div className="artist-detail-content">
-        <div className="artist-detail-header">
-          <button className="back-button" onClick={onBack}>
-            <FontAwesomeIcon icon={faArrowLeft} />
-            {t('artistDetail.back')}
-          </button>
+    <Page className="artist-detail">
+      <TopBar back={back} />
 
-          <h1>{artist.name}</h1>
-          <p className="artist-role-display">{artist.role}</p>
-        </div>
+      <div className="bt-kicker">{artist.role}</div>
+      <h1 className="bt-page-title artist-detail__title">{artist.name}</h1>
 
-        <div className="artist-sections-grid">
-          {SECTIONS.map(section => (
-            <div
-              key={section.key}
-              className={`artist-section-card ${section.className}`}
-              role="button"
-              tabIndex={0}
-              onClick={() => navigate(section.path(tourId, artistId))}
-              onKeyDown={e => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  navigate(section.path(tourId, artistId));
-                }
-              }}
-            >
-              <div className="section-icon">
-                <FontAwesomeIcon icon={section.icon} />
-              </div>
-              <div className="section-info">
-                <h3>{t(`artistDetail.sections.${section.key}.title`)}</h3>
-                <p>{t(`artistDetail.sections.${section.key}.description`)}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+      <nav className="bt-grid" aria-label={artist.name}>
+        {SECTIONS.map(section => (
+          <NavCard
+            key={section.key}
+            to={section.path(tourId, artistId)}
+            icon={section.icon}
+            title={t(`artistDetail.sections.${section.key}.title`)}
+            description={t(`artistDetail.sections.${section.key}.description`)}
+          />
+        ))}
+      </nav>
+    </Page>
   );
 };
 

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import CategoryListPage from '../../components/category-list/CategoryListPage';
 import { checklistItemType } from '../../components/category-list/itemTypes';
@@ -7,6 +8,7 @@ import toBuyService from '../../services/tobuy.service';
 
 const ToBuy: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const user = useRequiredUser();
   const service = useMemo(() => toBuyService.forUser(user.uid), [user.uid]);
   const itemType = useMemo(() => checklistItemType(t('toBuy.completedLabel')), [t]);
@@ -19,7 +21,14 @@ const ToBuy: React.FC = () => {
     emptyCategory: t('toBuy.emptyCategory'),
   };
 
-  return <CategoryListPage service={service} itemType={itemType} labels={labels} />;
+  return (
+    <CategoryListPage
+      service={service}
+      itemType={itemType}
+      labels={labels}
+      back={{ label: t('nav.home'), onClick: () => navigate('/home') }}
+    />
+  );
 };
 
 export default ToBuy;

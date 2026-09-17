@@ -2,25 +2,48 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DragDropContext, Draggable, Droppable, DropResult } from '@hello-pangea/dnd';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faChevronDown, faEdit, faPlus, faRotateLeft, faTrash } from '@fortawesome/free-solid-svg-icons';
-import './CategoryListPage.scss';
+import {
+  faCaretDown,
+  faCaretRight,
+  faGripVertical,
+  faPen,
+  faPlus,
+  faRotateLeft,
+  faTrashCan,
+} from '@fortawesome/free-solid-svg-icons';
 import { useToast } from '../../hooks/useToast';
+import { MOBILE_MEDIA_QUERY, useMediaQuery } from '../../hooks/useMediaQuery';
 import type { CategoryListService, ItemCategory } from '../../services/categoryList.service';
-import { ListItem, moveItemById, NewItem, updateAllItems, updateItemById } from '../../utils/categoryItems';
+import {
+  categoryProgress,
+  ListItem,
+  moveItemById,
+  NewItem,
+  updateAllItems,
+  updateItemById,
+} from '../../utils/categoryItems';
+import { FormErrors, hasErrors, withoutError } from '../../utils/formErrors';
 import FormModal from '../ui/FormModal';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import LoadingState from '../ui/LoadingState';
-import FloatingAddButton from '../ui/FloatingAddButton';
+import Button from '../ui/Button';
+import IconButton from '../ui/IconButton';
+import Field from '../ui/Field';
+import { Input } from '../ui/Input';
+import SearchInput from '../ui/SearchInput';
+import Tag from '../ui/Tag';
+import { BackLink, Page, PageTitle, TopBar } from '../ui/PageLayout';
 import type { CategoryListLabels, ItemType, ResetAction } from './types';
+import './CategoryListPage.scss';
 
 interface CategoryListPageProps<TItem extends ListItem, TForm> {
   service: CategoryListService<TItem>;
   itemType: ItemType<TItem, TForm>;
   labels: CategoryListLabels;
-  // Riga sotto il titolo, es. il nome dell'artista
-  subtitle?: string;
-  // Pulsante "indietro" sopra il titolo
-  back?: { label: string; onClick: () => void };
+  // Pulsante "indietro", con il nome della pagina di provenienza
+  back: BackLink;
+  // Contesto sopra il titolo, es. "Davide Muti · Batteria"
+  kicker?: string;
   // Pulsanti per azzerare gli elementi (es. togliere le spunte)
   resetAction?: ResetAction<TItem>;
   // Indicazione accanto al titolo della categoria, visibile anche a categoria chiusa (es. "2 da ricomprare")
@@ -38,13 +61,14 @@ function CategoryListPage<TItem extends ListItem, TForm>({
   service,
   itemType,
   labels,
-  subtitle,
   back,
+  kicker,
   resetAction,
   categoryBadge,
 }: CategoryListPageProps<TItem, TForm>) {
   const { showError } = useToast();
   const { t } = useTranslation();
+  const mobile = useMediaQuery(MOBILE_MEDIA_QUERY);
   const [categories, setCategories] = useState<ItemCategory<TItem>[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -53,11 +77,13 @@ function CategoryListPage<TItem extends ListItem, TForm>({
   // Modale categoria: null = chiusa, category null = nuova categoria
   const [categoryModal, setCategoryModal] = useState<{ category: ItemCategory<TItem> | null } | null>(null);
   const [categoryTitle, setCategoryTitle] = useState('');
+  const [categoryTitleError, setCategoryTitleError] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<ItemCategory<TItem> | null>(null);
 
   // Modale elemento: null = chiusa, item null = nuovo elemento
   const [itemModal, setItemModal] = useState<{ categoryId: string; item: TItem | null } | null>(null);
   const [itemForm, setItemForm] = useState<TForm>(itemType.emptyForm);
+  const [itemErrors, setItemErrors] = useState<FormErrors<TForm>>({});
   const [itemToDelete, setItemToDelete] = useState<ItemRef | null>(null);
 
   // Conferma azzeramento: null = chiusa, categoryId null = tutte le categorie
@@ -131,6 +157,7 @@ function CategoryListPage<TItem extends ListItem, TForm>({
 
   const openCategoryModal = (category: ItemCategory<TItem> | null) => {
     setCategoryTitle(category?.title ?? '');
+    setCategoryTitleError(false);
     setCategoryModal({ category });
   };
 
@@ -139,7 +166,7 @@ function CategoryListPage<TItem extends ListItem, TForm>({
 
     const title = categoryTitle.trim();
     if (!title) {
-      showError(t('lists.categoryNameRequired'));
+      setCategoryTitleError(true);
       return;
     }
 
@@ -177,15 +204,25 @@ function CategoryListPage<TItem extends ListItem, TForm>({
 
   const openItemModal = (categoryId: string, item: TItem | null) => {
     setItemForm(item ? itemType.toForm(item) : itemType.emptyForm);
+    setItemErrors({});
     setItemModal({ categoryId, item });
+  };
+
+  // Modificando un campo sparisce il suo errore
+  const changeItemForm = (form: TForm) => {
+    setItemErrors(current => (Object.keys(current) as (keyof TForm)[]).reduce(
+      (errors, field) => (form[field] !== itemForm[field] ? withoutError(errors, field) : errors),
+      current
+    ));
+    setItemForm(form);
   };
 
   const handleSaveItem = async () => {
     if (!itemModal) return;
 
-    const validationError = itemType.validate(itemForm);
-    if (validationError) {
-      showError(t(validationError));
+    const validation = itemType.validate(itemForm);
+    if (hasErrors(validation)) {
+      setItemErrors(validation);
       return;
     }
 
@@ -257,49 +294,68 @@ function CategoryListPage<TItem extends ListItem, TForm>({
     ));
   };
 
+  // Etichetta di avanzamento delle categorie con spunte, es. "1 di 3 fatti"
+  const progressTag = (items: TItem[]) => {
+    if (!itemType.isCompleted) return null;
+    const progress = categoryProgress(items, itemType.isCompleted);
+    switch (progress.status) {
+      case 'empty':
+        return null;
+      case 'open':
+        return <Tag tone="outline">{t('lists.progressOpen', { count: progress.count })}</Tag>;
+      case 'partial':
+        return (
+          <Tag tone="outline">
+            {t(mobile ? 'lists.progressShort' : 'lists.progressDone', { done: progress.done, total: progress.total })}
+          </Tag>
+        );
+      case 'done':
+        return <Tag tone="neutral">{t('lists.progressAllDone')}</Tag>;
+    }
+  };
+
   const filteredCategories = categories.filter(category =>
     category.title.toLowerCase().includes(searchTerm.trim().toLowerCase())
   );
 
-  if (loading) {
-    return (
-      <div className="cl-page">
-        <LoadingState />
-      </div>
-    );
-  }
+  const resetAllButton = resetAction && (
+    <Button
+      icon={faRotateLeft}
+      block={mobile}
+      className="bt-btn-md cl-reset-all"
+      onClick={() => setResetTarget({ categoryId: null })}
+      disabled={!categories.some(needsReset)}
+    >
+      {resetAction.allLabel}
+    </Button>
+  );
 
   return (
-    <div className="cl-page">
-      <div className="cl-container">
-        {back && (
-          <button type="button" className="cl-back" onClick={back.onClick}>
-            <FontAwesomeIcon icon={faArrowLeft} /> {back.label}
-          </button>
-        )}
-        <h1 className="cl-title">{labels.pageTitle}</h1>
-        {subtitle && <p className="cl-subtitle">{subtitle}</p>}
-        <div className="cl-search">
-          <input
-            type="text"
-            placeholder={t('lists.searchCategory')}
-            aria-label={t('lists.searchCategory')}
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-          />
-        </div>
+    <Page className="cl-page">
+      <TopBar back={back} />
 
-        {resetAction && (
-          <button
-            type="button"
-            className="cl-reset-all"
-            onClick={() => setResetTarget({ categoryId: null })}
-            disabled={!categories.some(needsReset)}
-          >
-            <FontAwesomeIcon icon={faRotateLeft} /> {resetAction.allLabel}
-          </button>
-        )}
+      <PageTitle
+        title={labels.pageTitle}
+        kicker={kicker}
+        actions={!mobile && resetAllButton}
+        primaryAction={
+          <Button variant="primary" icon={faPlus} className="bt-btn-md" onClick={() => openCategoryModal(null)}>
+            {t('lists.addCategory')}
+          </Button>
+        }
+      />
 
+      <SearchInput
+        className="cl-search"
+        value={searchTerm}
+        onChange={setSearchTerm}
+        placeholder={t('lists.searchCategory')}
+      />
+      {mobile && resetAllButton}
+
+      {loading ? (
+        <LoadingState />
+      ) : (
         <DragDropContext onDragEnd={handleDragEnd}>
           <ul className="cl-categories">
             {filteredCategories.map(category => {
@@ -307,7 +363,7 @@ function CategoryListPage<TItem extends ListItem, TForm>({
               const badge = categoryBadge?.(category.items);
 
               return (
-                <li key={category.id}>
+                <li key={category.id} className="card elev-sm cl-category">
                   <div className="cl-category-header">
                     <button
                       type="button"
@@ -315,47 +371,43 @@ function CategoryListPage<TItem extends ListItem, TForm>({
                       onClick={() => toggleExpanded(category.id)}
                       aria-expanded={isOpen}
                     >
-                      <span>{category.title}</span>
-                      {badge && <span className="cl-category-badge">{badge}</span>}
-                      <FontAwesomeIcon icon={faChevronDown} className={`cl-chevron ${isOpen ? 'cl-chevron--open' : ''}`} />
+                      <FontAwesomeIcon
+                        icon={isOpen ? faCaretDown : faCaretRight}
+                        className={`cl-caret ${isOpen ? 'cl-caret--open' : ''}`}
+                        aria-hidden="true"
+                      />
+                      <span className="cl-category-title">{category.title}</span>
                     </button>
+                    <div className="cl-category-tags">
+                      {progressTag(category.items)}
+                      {badge && <Tag tone="outline">{badge}</Tag>}
+                    </div>
                     <div className="cl-category-actions">
                       {resetAction && (
-                        <button
-                          type="button"
-                          className="cl-icon-button"
+                        <IconButton
+                          icon={faRotateLeft}
                           onClick={() => setResetTarget({ categoryId: category.id })}
                           disabled={!needsReset(category)}
-                          title={resetAction.categoryLabel(category.title)}
-                          aria-label={resetAction.categoryLabel(category.title)}
-                        >
-                          <FontAwesomeIcon icon={faRotateLeft} />
-                        </button>
+                          label={resetAction.categoryLabel(category.title)}
+                        />
                       )}
-                      <button
-                        type="button"
-                        className="cl-icon-button"
+                      <IconButton
+                        icon={faPen}
                         onClick={() => openCategoryModal(category)}
-                        title={t('lists.editCategoryTitle')}
-                        aria-label={t('lists.editCategoryLabel', { title: category.title })}
-                      >
-                        <FontAwesomeIcon icon={faEdit} />
-                      </button>
-                      <button
-                        type="button"
-                        className="cl-icon-button cl-icon-button--danger"
+                        label={t('lists.editCategoryLabel', { title: category.title })}
+                      />
+                      <IconButton
+                        icon={faTrashCan}
+                        danger
                         onClick={() => setCategoryToDelete(category)}
-                        title={t('common.delete')}
-                        aria-label={t('lists.deleteCategoryLabel', { title: category.title })}
-                      >
-                        <FontAwesomeIcon icon={faTrash} />
-                      </button>
+                        label={t('lists.deleteCategoryLabel', { title: category.title })}
+                      />
                     </div>
                   </div>
 
                   {isOpen && (
                     <div className="cl-category-content">
-                      {category.items.length === 0 && <span className="cl-empty">{labels.emptyCategory}</span>}
+                      {category.items.length === 0 && <p className="bt-empty cl-empty">{labels.emptyCategory}</p>}
 
                       <Droppable droppableId={category.id}>
                         {droppable => (
@@ -369,30 +421,26 @@ function CategoryListPage<TItem extends ListItem, TForm>({
                                     {...draggable.dragHandleProps}
                                     className={`cl-item ${snapshot.isDragging ? 'cl-item--dragging' : ''}`}
                                   >
+                                    <FontAwesomeIcon icon={faGripVertical} className="cl-grip" aria-hidden="true" />
                                     <div className="cl-item-main">
                                       {itemType.renderContent(item, {
                                         update: updates => handleQuickUpdate(category.id, item.id, updates),
                                       })}
                                     </div>
                                     <div className="cl-item-actions">
-                                      <button
-                                        type="button"
-                                        className="cl-icon-button"
+                                      <IconButton
+                                        icon={faPen}
+                                        variant="ghost"
                                         onClick={() => openItemModal(category.id, item)}
-                                        title={labels.editItem}
-                                        aria-label={labels.editItem}
-                                      >
-                                        <FontAwesomeIcon icon={faEdit} />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className="cl-icon-button cl-icon-button--danger"
+                                        label={labels.editItem}
+                                      />
+                                      <IconButton
+                                        icon={faTrashCan}
+                                        variant="ghost"
+                                        danger
                                         onClick={() => setItemToDelete({ categoryId: category.id, itemId: item.id })}
-                                        title={t('common.delete')}
-                                        aria-label={t('common.delete')}
-                                      >
-                                        <FontAwesomeIcon icon={faTrash} />
-                                      </button>
+                                        label={t('common.delete')}
+                                      />
                                     </div>
                                   </li>
                                 )}
@@ -403,9 +451,9 @@ function CategoryListPage<TItem extends ListItem, TForm>({
                         )}
                       </Droppable>
 
-                      <button type="button" className="cl-add-item" onClick={() => openItemModal(category.id, null)}>
-                        <FontAwesomeIcon icon={faPlus} /> {labels.addItem}
-                      </button>
+                      <Button variant="ghost" icon={faPlus} className="cl-add-item" onClick={() => openItemModal(category.id, null)}>
+                        {labels.addItem}
+                      </Button>
                     </div>
                   )}
                 </li>
@@ -413,9 +461,7 @@ function CategoryListPage<TItem extends ListItem, TForm>({
             })}
           </ul>
         </DragDropContext>
-
-        <FloatingAddButton label={t('lists.addCategory')} onClick={() => openCategoryModal(null)} />
-      </div>
+      )}
 
       <FormModal
         open={categoryModal !== null}
@@ -424,10 +470,16 @@ function CategoryListPage<TItem extends ListItem, TForm>({
         onSubmit={handleSaveCategory}
         onClose={() => setCategoryModal(null)}
       >
-        <label>
-          {t('lists.categoryName')}
-          <input type="text" value={categoryTitle} onChange={e => setCategoryTitle(e.target.value)} autoFocus />
-        </label>
+        <Field label={t('lists.categoryName')} error={categoryTitleError ? t('lists.categoryNameRequired') : null}>
+          <Input
+            value={categoryTitle}
+            onChange={e => {
+              setCategoryTitle(e.target.value);
+              setCategoryTitleError(false);
+            }}
+            autoFocus
+          />
+        </Field>
       </FormModal>
 
       <FormModal
@@ -437,7 +489,7 @@ function CategoryListPage<TItem extends ListItem, TForm>({
         onSubmit={handleSaveItem}
         onClose={() => setItemModal(null)}
       >
-        {itemType.renderFields(itemForm, setItemForm)}
+        {itemType.renderFields(itemForm, changeItemForm, itemErrors)}
       </FormModal>
 
       <ConfirmDialog
@@ -462,7 +514,7 @@ function CategoryListPage<TItem extends ListItem, TForm>({
           onCancel={() => setResetTarget(null)}
         />
       )}
-    </div>
+    </Page>
   );
 }
 

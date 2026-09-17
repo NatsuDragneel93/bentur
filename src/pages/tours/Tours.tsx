@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import './Tours.scss';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faPen, faPlus, faRoute, faTrashCan } from '@fortawesome/free-solid-svg-icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import toursService, { Tour } from '../../services/tours.service';
+import tourArtistsService from '../../services/tourArtists.service';
 import { useToast } from '../../hooks/useToast';
 import { useRequiredUser } from '../../hooks/useAuth';
 import TourDetail from './components/TourDetail';
@@ -12,22 +12,38 @@ import ArtistDetail from './components/ArtistDetail';
 import FormModal from '../../components/ui/FormModal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import LoadingState from '../../components/ui/LoadingState';
-import FloatingAddButton from '../../components/ui/FloatingAddButton';
+import Button from '../../components/ui/Button';
+import IconButton from '../../components/ui/IconButton';
+import Field from '../../components/ui/Field';
+import { Input } from '../../components/ui/Input';
+import Tag from '../../components/ui/Tag';
+import { RowCard } from '../../components/ui/Card';
+import { Page, PageTitle, TopBar } from '../../components/ui/PageLayout';
+import { FormErrors, hasErrors, requiredFieldErrors, withoutError } from '../../utils/formErrors';
+
+interface TourForm {
+  name: string;
+  stagePlot: string;
+  channelList: string;
+}
+
+const emptyForm: TourForm = { name: '', stagePlot: '', channelList: '' };
 
 const Tours: React.FC = () => {
   const { showError } = useToast();
   const { t } = useTranslation();
   const user = useRequiredUser();
   const [tours, setTours] = useState<Tour[]>([]);
+  // Numero di artisti per tour, caricato dopo i tour (solo informativo)
+  const [artistCounts, setArtistCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const { tourId, artistId } = useParams();
   const navigate = useNavigate();
 
   const [isTourModalOpen, setIsTourModalOpen] = useState(false);
   const [tourToEdit, setTourToEdit] = useState<Tour | null>(null);
-  const [tourName, setTourName] = useState('');
-  const [tourStagePlot, setTourStagePlot] = useState('');
-  const [tourChannelList, setTourChannelList] = useState('');
+  const [form, setForm] = useState<TourForm>(emptyForm);
+  const [errors, setErrors] = useState<FormErrors<TourForm>>({});
   const [tourToDelete, setTourToDelete] = useState<string | null>(null);
 
   const loadTours = useCallback(async () => {
@@ -43,19 +59,33 @@ const Tours: React.FC = () => {
     loadTours().finally(() => setLoading(false));
   }, [loadTours]);
 
+  // Numero di artisti di ogni tour, solo quando l'elenco è visibile.
+  // Se un conteggio fallisce la card resta senza numero di artisti.
+  useEffect(() => {
+    if (tourId || tours.length === 0) return;
+    let cancelled = false;
+
+    Promise.all(tours.map(tour =>
+      tourArtistsService.countTourArtists(tour.id).then(count => [tour.id, count] as const, () => null)
+    )).then(counts => {
+      if (!cancelled) setArtistCounts(Object.fromEntries(counts.filter(entry => entry !== null)));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [tours, tourId]);
+
   const openAddModal = () => {
     setTourToEdit(null);
-    setTourName('');
-    setTourStagePlot('');
-    setTourChannelList('');
+    setForm(emptyForm);
+    setErrors({});
     setIsTourModalOpen(true);
   };
 
   const openEditModal = (tour: Tour) => {
     setTourToEdit(tour);
-    setTourName(tour.name);
-    setTourStagePlot(tour.stagePlot || '');
-    setTourChannelList(tour.channelList || '');
+    setForm({ name: tour.name, stagePlot: tour.stagePlot || '', channelList: tour.channelList || '' });
+    setErrors({});
     setIsTourModalOpen(true);
   };
 
@@ -64,17 +94,23 @@ const Tours: React.FC = () => {
     setTourToEdit(null);
   };
 
+  const updateField = (field: keyof TourForm, value: string) => {
+    setForm(current => ({ ...current, [field]: value }));
+    setErrors(current => withoutError(current, field));
+  };
+
   const handleSaveTour = async () => {
-    if (tourName.trim() === '') {
-      showError(t('tours.nameRequired'));
+    const validation = requiredFieldErrors(form, { name: 'tours.nameRequired' });
+    if (hasErrors(validation)) {
+      setErrors(validation);
       return;
     }
 
     try {
       const details = {
-        name: tourName.trim(),
-        stagePlot: tourStagePlot.trim(),
-        channelList: tourChannelList.trim()
+        name: form.name.trim(),
+        stagePlot: form.stagePlot.trim(),
+        channelList: form.channelList.trim()
       };
 
       if (tourToEdit) {
@@ -104,85 +140,79 @@ const Tours: React.FC = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="tours-page-container">
-        <LoadingState />
-      </div>
-    );
-  }
-
   // Se è selezionato un artista, mostra il dettaglio dell'artista
   if (tourId && artistId) {
-    return (
-      <ArtistDetail
-        tourId={tourId}
-        artistId={artistId}
-        onBack={() => navigate(`/tours/${tourId}`)}
-      />
-    );
+    return <ArtistDetail tourId={tourId} artistId={artistId} onBack={() => navigate(`/tours/${tourId}`)} />;
   }
 
   // Se è selezionato un tour, mostra il dettaglio
   if (tourId) {
-    return (
-      <TourDetail
-        tourId={tourId}
-        onBack={() => navigate('/tours')}
-        onArtistClick={(artistId) => navigate(`/tours/${tourId}/artists/${artistId}`)}
-      />
-    );
+    return <TourDetail tourId={tourId} onBack={() => navigate('/tours')} />;
   }
 
+  // Cosa contiene il tour, es. "4 artisti · Stage Plot · Channel List"
+  const tourMeta = (tour: Tour) => {
+    const parts = [
+      artistCounts[tour.id] !== undefined ? t('tours.artistCount', { count: artistCounts[tour.id] }) : null,
+      tour.stagePlot ? t('tourDetail.stagePlot') : null,
+      tour.channelList ? t('tourDetail.channelList') : null,
+    ].filter(Boolean);
+    return parts.length > 0 ? parts.join(' · ') : null;
+  };
+
   return (
-    <div className="tours-page-container">
-      <div className="tours-container">
-        <h1>{t('tours.title')}</h1>
+    <Page>
+      <TopBar back={{ label: t('nav.home'), onClick: () => navigate('/home') }} />
 
-        <ul className="tours-list">
-          {tours.map(tour => (
-            <li key={tour.id} className="tour-item">
-              <div
-                className="tour-content"
-                onClick={() => navigate(`/tours/${tour.id}`)}
-                style={{ cursor: 'pointer' }}
-              >
-                <span className="tour-name">{tour.name}</span>
-                {tour.ownerId === user.uid && (
-                  <div className="tour-actions">
-                    <button
-                      className="tour-edit-button"
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation(); // Previene il click sul tour-content
-                        openEditModal(tour);
-                      }}
-                      title={t('tours.editTitle')}
-                      aria-label={t('tours.editLabel', { name: tour.name })}
-                    >
-                      <FontAwesomeIcon icon={faEdit} />
-                    </button>
-                    <button
-                      className="tour-delete-button"
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation(); // Previene il click sul tour-content
-                        setTourToDelete(tour.id);
-                      }}
-                      title={t('common.delete')}
-                      aria-label={t('tours.deleteLabel', { name: tour.name })}
-                    >
-                      <FontAwesomeIcon icon={faTrash} />
-                    </button>
-                  </div>
-                )}
-              </div>
-            </li>
-          ))}
+      <PageTitle
+        title={t('tours.title')}
+        subtitle={loading ? undefined : t('tours.subtitle', { count: tours.length })}
+        primaryAction={
+          <Button variant="primary" icon={faPlus} className="bt-btn-lg" onClick={openAddModal}>
+            {t('tours.add')}
+          </Button>
+        }
+      />
+
+      {loading ? (
+        <LoadingState />
+      ) : (
+        <ul className="bt-stack">
+          {tours.map(tour => {
+            const isOwner = tour.ownerId === user.uid;
+            return (
+              <li key={tour.id}>
+                <RowCard
+                  to={`/tours/${tour.id}`}
+                  title={tour.name}
+                  meta={tourMeta(tour)}
+                  leading={<FontAwesomeIcon icon={faRoute} />}
+                  trailing={
+                    <>
+                      <Tag tone={isOwner ? 'neutral' : 'outline'}>{t(isOwner ? 'tours.owner' : 'tours.crew')}</Tag>
+                      {isOwner && (
+                        <>
+                          <IconButton
+                            icon={faPen}
+                            label={t('tours.editLabel', { name: tour.name })}
+                            onClick={() => openEditModal(tour)}
+                          />
+                          <IconButton
+                            icon={faTrashCan}
+                            danger
+                            label={t('tours.deleteLabel', { name: tour.name })}
+                            onClick={() => setTourToDelete(tour.id)}
+                          />
+                        </>
+                      )}
+                    </>
+                  }
+                />
+              </li>
+            );
+          })}
         </ul>
-
-        <FloatingAddButton label={t('tours.add')} onClick={openAddModal} />
-      </div>
+      )}
 
       <FormModal
         open={isTourModalOpen}
@@ -191,33 +221,30 @@ const Tours: React.FC = () => {
         onSubmit={handleSaveTour}
         onClose={closeModal}
       >
-        <label>
-          {t('tours.nameField')}
-          <input
-            type="text"
-            value={tourName}
-            onChange={e => setTourName(e.target.value)}
+        <Field label={t('tours.nameField')} error={errors.name && t(errors.name)}>
+          <Input
+            value={form.name}
+            onChange={e => updateField('name', e.target.value)}
+            placeholder={t('tours.namePlaceholder')}
             autoFocus
           />
-        </label>
-        <label>
-          {t('tours.stagePlotField')}
-          <input
+        </Field>
+        <Field label={t('tours.stagePlotField')}>
+          <Input
             type="url"
-            value={tourStagePlot}
-            onChange={e => setTourStagePlot(e.target.value)}
-            placeholder="https://drive.google.com/..."
+            value={form.stagePlot}
+            onChange={e => updateField('stagePlot', e.target.value)}
+            placeholder={t('tours.urlPlaceholder')}
           />
-        </label>
-        <label>
-          {t('tours.channelListField')}
-          <input
+        </Field>
+        <Field label={t('tours.channelListField')}>
+          <Input
             type="url"
-            value={tourChannelList}
-            onChange={e => setTourChannelList(e.target.value)}
-            placeholder="https://drive.google.com/..."
+            value={form.channelList}
+            onChange={e => updateField('channelList', e.target.value)}
+            placeholder={t('tours.urlPlaceholder')}
           />
-        </label>
+        </Field>
       </FormModal>
 
       <ConfirmDialog
@@ -226,7 +253,7 @@ const Tours: React.FC = () => {
         onConfirm={handleDeleteTour}
         onCancel={() => setTourToDelete(null)}
       />
-    </div>
+    </Page>
   );
 };
 

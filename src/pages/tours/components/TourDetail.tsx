@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import './TourDetail.scss';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEdit, faTrash, faArrowLeft, faExternalLinkAlt } from '@fortawesome/free-solid-svg-icons';
+import {
+  faArrowUpRightFromSquare,
+  faPen,
+  faPlus,
+  faTrashCan,
+  faUserPlus,
+} from '@fortawesome/free-solid-svg-icons';
 import toursService, { Tour } from '../../../services/tours.service';
 import tourArtistsService, { TourArtist } from '../../../services/tourArtists.service';
 import { useToast } from '../../../hooks/useToast';
@@ -10,15 +14,33 @@ import { useRequiredUser } from '../../../hooks/useAuth';
 import FormModal from '../../../components/ui/FormModal';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import LoadingState from '../../../components/ui/LoadingState';
-import FloatingAddButton from '../../../components/ui/FloatingAddButton';
+import Button from '../../../components/ui/Button';
+import IconButton from '../../../components/ui/IconButton';
+import Field from '../../../components/ui/Field';
+import { Input } from '../../../components/ui/Input';
+import { RowCard } from '../../../components/ui/Card';
+import { Page, PageTitle, TopBar } from '../../../components/ui/PageLayout';
+import { FormErrors, hasErrors, requiredFieldErrors, withoutError } from '../../../utils/formErrors';
+import { artistPath } from '../artist-lists/artistListPaths';
+import './TourDetail.scss';
 
 interface TourDetailProps {
   tourId: string;
   onBack: () => void;
-  onArtistClick?: (artistId: string) => void;
 }
 
-const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }) => {
+interface ArtistForm {
+  name: string;
+  role: string;
+}
+
+const emptyForm: ArtistForm = { name: '', role: '' };
+
+// Iniziali per l'avatar dell'artista, es. "Davide Muti" -> "DM"
+const initials = (name: string) =>
+  name.trim().split(/\s+/).slice(0, 2).map(word => word.charAt(0).toUpperCase()).join('');
+
+const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack }) => {
   const { showError, showToast } = useToast();
   const { t } = useTranslation();
   const user = useRequiredUser();
@@ -28,8 +50,8 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
 
   const [isArtistModalOpen, setIsArtistModalOpen] = useState(false);
   const [artistToEdit, setArtistToEdit] = useState<TourArtist | null>(null);
-  const [artistName, setArtistName] = useState('');
-  const [artistRole, setArtistRole] = useState('');
+  const [form, setForm] = useState<ArtistForm>(emptyForm);
+  const [errors, setErrors] = useState<FormErrors<ArtistForm>>({});
   const [artistToDelete, setArtistToDelete] = useState<string | null>(null);
 
   const loadTourData = useCallback(async () => {
@@ -51,15 +73,15 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
 
   const openAddArtistModal = () => {
     setArtistToEdit(null);
-    setArtistName('');
-    setArtistRole('');
+    setForm(emptyForm);
+    setErrors({});
     setIsArtistModalOpen(true);
   };
 
   const openEditArtistModal = (artist: TourArtist) => {
     setArtistToEdit(artist);
-    setArtistName(artist.name);
-    setArtistRole(artist.role);
+    setForm({ name: artist.name, role: artist.role });
+    setErrors({});
     setIsArtistModalOpen(true);
   };
 
@@ -68,20 +90,27 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
     setArtistToEdit(null);
   };
 
+  const updateField = (field: keyof ArtistForm, value: string) => {
+    setForm(current => ({ ...current, [field]: value }));
+    setErrors(current => withoutError(current, field));
+  };
+
   const handleSaveArtist = async () => {
-    if (artistName.trim() === '' || artistRole.trim() === '') {
-      showError(t('tourDetail.artistRequired'));
+    const validation = requiredFieldErrors(form, {
+      name: 'tourDetail.artistNameRequired',
+      role: 'tourDetail.roleRequired',
+    });
+    if (hasErrors(validation)) {
+      setErrors(validation);
       return;
     }
 
     try {
+      const details = { name: form.name.trim(), role: form.role.trim() };
       if (artistToEdit) {
-        await tourArtistsService.updateTourArtist(tourId, artistToEdit.id, {
-          name: artistName.trim(),
-          role: artistRole.trim()
-        });
+        await tourArtistsService.updateTourArtist(tourId, artistToEdit.id, details);
       } else {
-        await tourArtistsService.addTourArtist(tourId, { name: artistName.trim(), role: artistRole.trim() });
+        await tourArtistsService.addTourArtist(tourId, details);
       }
 
       await loadTourData();
@@ -111,21 +140,23 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
     }
   };
 
+  const back = { label: t('nav.tours'), onClick: onBack };
+
   if (loading) {
     return (
-      <div className="tour-detail-container">
+      <Page>
+        <TopBar back={back} />
         <LoadingState />
-      </div>
+      </Page>
     );
   }
 
   if (!tour) {
     return (
-      <div className="tour-detail-container">
-        <div style={{ textAlign: 'center', padding: '2rem' }}>
-          {t('tourDetail.notFound')}
-        </div>
-      </div>
+      <Page>
+        <TopBar back={back} />
+        <p className="bt-empty">{t('tourDetail.notFound')}</p>
+      </Page>
     );
   }
 
@@ -133,82 +164,67 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
   const isOwner = tour.ownerId === user.uid;
 
   return (
-    <div className="tour-detail-container">
-      <div className="tour-detail-content">
-        <div className="tour-detail-header">
-          <button className="back-button" onClick={onBack}>
-            <FontAwesomeIcon icon={faArrowLeft} />
-            {t('tourDetail.back')}
-          </button>
-          <h1>{tour.name}</h1>
-        </div>
+    <Page className="tour-detail">
+      <TopBar back={back} />
 
-        <div className="tour-documents">
-          <div className="document-buttons">
-            {tour.stagePlot && (
-              <button className="document-button" onClick={() => openExternalLink(tour.stagePlot!)}>
-                <FontAwesomeIcon icon={faExternalLinkAlt} />
-                {t('tourDetail.stagePlot')}
-              </button>
-            )}
-            {tour.channelList && (
-              <button className="document-button" onClick={() => openExternalLink(tour.channelList!)}>
-                <FontAwesomeIcon icon={faExternalLinkAlt} />
-                {t('tourDetail.channelList')}
-              </button>
-            )}
-            <button
-              className="document-button share-button"
-              onClick={() => showToast(t('tourDetail.shareComingSoon'))}
-            >
-              {t('tourDetail.shareCrew')}
-            </button>
-          </div>
-        </div>
+      <div className="bt-kicker">{t('tourDetail.kicker')}</div>
+      <h1 className="bt-page-title tour-detail__title">{tour.name}</h1>
 
-        <div className="artists-section">
-          <h2>{t('tourDetail.artists')}</h2>
-          <ul className="artists-list">
-            {artists.map(artist => (
-              <li key={artist.id} className="artist-item">
-                <div className="artist-content">
-                  <div
-                    className="artist-info clickable"
-                    onClick={() => onArtistClick?.(artist.id)}
-                  >
-                    <span className="artist-name">{artist.name}</span>
-                    <span className="artist-role">{artist.role}</span>
-                  </div>
-                  {isOwner && (
-                    <div className="artist-actions">
-                      <button
-                        className="artist-edit-button"
-                        type="button"
-                        onClick={() => openEditArtistModal(artist)}
-                        title={t('tourDetail.editArtistTitle')}
-                        aria-label={t('tourDetail.editArtistLabel', { name: artist.name })}
-                      >
-                        <FontAwesomeIcon icon={faEdit} />
-                      </button>
-                      <button
-                        className="artist-delete-button"
-                        type="button"
-                        onClick={() => setArtistToDelete(artist.id)}
-                        title={t('common.delete')}
-                        aria-label={t('tourDetail.deleteArtistLabel', { name: artist.name })}
-                      >
-                        <FontAwesomeIcon icon={faTrash} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {isOwner && <FloatingAddButton label={t('tourDetail.addArtist')} onClick={openAddArtistModal} />}
+      <div className="tour-detail__documents">
+        {tour.stagePlot && (
+          <Button icon={faArrowUpRightFromSquare} className="tour-detail__document" onClick={() => openExternalLink(tour.stagePlot!)}>
+            {t('tourDetail.stagePlot')}
+          </Button>
+        )}
+        {tour.channelList && (
+          <Button icon={faArrowUpRightFromSquare} className="tour-detail__document" onClick={() => openExternalLink(tour.channelList!)}>
+            {t('tourDetail.channelList')}
+          </Button>
+        )}
+        <Button icon={faUserPlus} className="tour-detail__document" onClick={() => showToast(t('tourDetail.shareComingSoon'))}>
+          {t('tourDetail.shareCrew')}
+        </Button>
       </div>
+
+      <PageTitle
+        className="tour-detail__artists-header"
+        title={t('tourDetail.artists')}
+        level={2}
+        primaryAction={isOwner && (
+          <Button variant="primary" icon={faPlus} className="bt-btn-md" onClick={openAddArtistModal}>
+            {t('tourDetail.addArtist')}
+          </Button>
+        )}
+      />
+
+      <ul className="bt-stack bt-stack--tight">
+        {artists.map(artist => (
+          <li key={artist.id}>
+            <RowCard
+              compact
+              to={artistPath(tourId, artist.id)}
+              title={artist.name}
+              meta={artist.role}
+              leading={<span className="bt-initials" aria-hidden="true">{initials(artist.name)}</span>}
+              trailing={isOwner && (
+                <>
+                  <IconButton
+                    icon={faPen}
+                    label={t('tourDetail.editArtistLabel', { name: artist.name })}
+                    onClick={() => openEditArtistModal(artist)}
+                  />
+                  <IconButton
+                    icon={faTrashCan}
+                    danger
+                    label={t('tourDetail.deleteArtistLabel', { name: artist.name })}
+                    onClick={() => setArtistToDelete(artist.id)}
+                  />
+                </>
+              )}
+            />
+          </li>
+        ))}
+      </ul>
 
       <FormModal
         open={isArtistModalOpen}
@@ -217,24 +233,21 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
         onSubmit={handleSaveArtist}
         onClose={closeArtistModal}
       >
-        <label>
-          {t('tourDetail.artistNameField')}
-          <input
-            type="text"
-            value={artistName}
-            onChange={e => setArtistName(e.target.value)}
+        <Field label={t('tourDetail.artistNameField')} error={errors.name && t(errors.name)}>
+          <Input
+            value={form.name}
+            onChange={e => updateField('name', e.target.value)}
+            placeholder={t('tourDetail.artistNamePlaceholder')}
             autoFocus
           />
-        </label>
-        <label>
-          {t('tourDetail.roleField')}
-          <input
-            type="text"
-            value={artistRole}
-            onChange={e => setArtistRole(e.target.value)}
+        </Field>
+        <Field label={t('tourDetail.roleField')} error={errors.role && t(errors.role)}>
+          <Input
+            value={form.role}
+            onChange={e => updateField('role', e.target.value)}
             placeholder={t('tourDetail.rolePlaceholder')}
           />
-        </label>
+        </Field>
       </FormModal>
 
       <ConfirmDialog
@@ -243,7 +256,7 @@ const TourDetail: React.FC<TourDetailProps> = ({ tourId, onBack, onArtistClick }
         onConfirm={handleDeleteArtist}
         onCancel={() => setArtistToDelete(null)}
       />
-    </div>
+    </Page>
   );
 };
 

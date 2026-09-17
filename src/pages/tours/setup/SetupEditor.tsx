@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faArrowLeft,
   faCircleQuestion,
@@ -15,13 +14,14 @@ import {
   faRotateLeft,
   faRotateRight,
 } from '@fortawesome/free-solid-svg-icons';
-import './SetupEditor.scss';
 import LoadingState from '../../../components/ui/LoadingState';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog';
-import Modal from '../../../components/ui/Modal';
+import Dialog from '../../../components/ui/Dialog';
+import Button from '../../../components/ui/Button';
+import IconButton from '../../../components/ui/IconButton';
 import { useToast } from '../../../hooks/useToast';
 import { useRequiredUser } from '../../../hooks/useAuth';
-import { MOBILE_MEDIA_QUERY, useMediaQuery } from '../../../hooks/useMediaQuery';
+import { COMPACT_MEDIA_QUERY, MOBILE_MEDIA_QUERY, useMediaQuery } from '../../../hooks/useMediaQuery';
 import artistSetupsService, { StageSetup } from '../../../services/artistSetups.service';
 import { generateItemId } from '../../../utils/categoryItems';
 import { commit, createHistory, History, redo, undo } from '../../../utils/history';
@@ -59,11 +59,17 @@ import { hasSeenGestureHelp, markGestureHelpSeen } from './gestureHelpStorage';
 import ShapePalette from './ShapePalette';
 import ShapeProperties from './ShapeProperties';
 import StageCanvas, { StageCanvasHandle } from './StageCanvas';
+import { STAGE_BACKGROUND } from './stageTheme';
+import './SetupEditor.scss';
 
 const BUTTON_ZOOM_FACTOR = 1.25;
 
+// Margine tra il bordo della tela e il palco a zoom 1 (lascia spazio alla scritta "Pubblico")
+const STAGE_MARGIN = 32;
+const STAGE_MARGIN_MOBILE = 16;
+
 // Spazio disponibile per la tela e scala del palco adattata (ricalcolati quando la finestra cambia)
-const useFitScale = () => {
+const useFitScale = (margin: number) => {
   // Callback ref: il contenitore compare solo dopo il caricamento
   const [container, ref] = useState<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
@@ -81,7 +87,7 @@ const useFitScale = () => {
     return () => observer.disconnect();
   }, [container]);
 
-  return { ref, viewport, scale: fitScale(viewport.width, viewport.height) };
+  return { ref, viewport, scale: fitScale(viewport.width - margin * 2, viewport.height - margin * 2) };
 };
 
 // Avviso del browser chiudendo o ricaricando la pagina con modifiche non salvate
@@ -108,9 +114,12 @@ const SetupEditor: React.FC = () => {
   const { showError, showSuccess } = useToast();
   const user = useRequiredUser();
   const { artist, loading: loadingArtist } = useTourArtist(tourId, artistId);
-  const { ref: canvasAreaRef, viewport, scale } = useFitScale();
-  const canvasRef = useRef<StageCanvasHandle>(null);
+  // Cellulare: palette in basso e barra su due righe
   const mobile = useMediaQuery(MOBILE_MEDIA_QUERY);
+  // Tablet e cellulare: il pannello proprietà si apre in primo piano
+  const compact = useMediaQuery(COMPACT_MEDIA_QUERY);
+  const { ref: canvasAreaRef, viewport, scale } = useFitScale(mobile ? STAGE_MARGIN_MOBILE : STAGE_MARGIN);
+  const canvasRef = useRef<StageCanvasHandle>(null);
 
   // Ultima versione salvata (o letta) su Firestore: null finché non è caricata
   const [saved, setSaved] = useState<StageSetup | null>(null);
@@ -119,7 +128,7 @@ const SetupEditor: React.FC = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [storedView, setView] = useState<StageView>(DEFAULT_VIEW);
   const [saving, setSaving] = useState(false);
-  // Su cellulare il pannello proprietà si apre solo su richiesta (Modifica o doppio tocco)
+  // Su tablet e cellulare il pannello proprietà si apre solo su richiesta (Modifica o doppio tocco)
   const [editing, setEditing] = useState(false);
   // Aiuto sui gesti: aperto da solo al primo accesso
   const [helpOpen, setHelpOpen] = useState(() => !hasSeenGestureHelp());
@@ -136,7 +145,7 @@ const SetupEditor: React.FC = () => {
   const selected = selectedIndex === -1 ? null : elements[selectedIndex];
   const dirty = saved !== null && !sameElements(elements, saved.elements);
   const validSetupKey = isSetupKey(setupKey) ? setupKey : null;
-  const showPropertiesSheet = mobile && editing && selected !== null;
+  const showPropertiesSheet = compact && editing && selected !== null;
 
   useUnsavedChangesWarning(dirty);
 
@@ -301,11 +310,13 @@ const SetupEditor: React.FC = () => {
   }
 
   const goBack = () => navigate(artistPath(tourId, artistId));
+  const requestBack = () => (dirty ? setConfirmLeave(true) : goBack());
+  const backLabel = artist?.name ?? t('setupEditor.back');
 
   const propertiesPanel = (
     <ShapeProperties
       element={selected}
-      variant={mobile ? 'sheet' : 'side'}
+      variant={compact ? 'sheet' : 'side'}
       canBringForward={selectedIndex !== -1 && selectedIndex < elements.length - 1}
       canSendBackward={selectedIndex > 0}
       onChange={(field, value) => {
@@ -317,131 +328,107 @@ const SetupEditor: React.FC = () => {
       onBringForward={() => selectedId && applyChange(current => reorderElement(current, selectedId, 'forward'))}
       onSendBackward={() => selectedId && applyChange(current => reorderElement(current, selectedId, 'backward'))}
       onDelete={deleteSelected}
-      // PC: chiude deselezionando; cellulare: chiude il pannello lasciando la forma selezionata
-      onClose={() => (mobile ? setEditing(false) : selectShape(null))}
+      // PC: chiude deselezionando; tablet e cellulare: chiude il pannello lasciando la forma selezionata
+      onClose={() => (compact ? setEditing(false) : selectShape(null))}
     />
   );
   const loading = loadingArtist || (artist !== null && loadingSetup);
+  const ready = !loading && artist !== null && saved !== null;
 
   return (
     <div className="se-page">
-      <div className="se-header">
-        <button type="button" className="se-back" onClick={() => (dirty ? setConfirmLeave(true) : goBack())}>
-          <FontAwesomeIcon icon={faArrowLeft} /> {t('setupEditor.back')}
-        </button>
+      <header className="se-header">
+        {mobile ? (
+          <IconButton icon={faArrowLeft} className="se-back" onClick={requestBack} label={backLabel} />
+        ) : (
+          <Button icon={faArrowLeft} className="se-back" onClick={requestBack}>
+            <span>{backLabel}</span>
+          </Button>
+        )}
+
         <div className="se-heading">
           <h1>{t(validSetupKey === 'a' ? 'setupEditor.titleA' : 'setupEditor.titleB')}</h1>
-          {artist && <p>{artist.name}</p>}
+          {artist && <p>{artist.name} · {artist.role}</p>}
         </div>
-      </div>
+
+        {ready && (
+          <>
+            <div className="se-tools">
+              <span className={`se-status ${dirty ? 'se-status--dirty' : ''}`} role="status">
+                {t(saving ? 'setupEditor.toolbar.saving' : dirty ? 'setupEditor.toolbar.unsaved' : 'setupEditor.toolbar.saved')}
+              </span>
+
+              <IconButton
+                icon={faRotateLeft}
+                onClick={() => setHistory(undo)}
+                disabled={history.past.length === 0}
+                label={t('setupEditor.toolbar.undo')}
+              />
+              <IconButton
+                icon={faRotateRight}
+                onClick={() => setHistory(redo)}
+                disabled={history.future.length === 0}
+                label={t('setupEditor.toolbar.redo')}
+              />
+              <IconButton
+                icon={faMagnifyingGlassMinus}
+                onClick={() => zoomFromCenter(1 / BUTTON_ZOOM_FACTOR)}
+                disabled={view.zoom <= 1}
+                label={t('setupEditor.toolbar.zoomOut')}
+              />
+              <IconButton
+                icon={faMagnifyingGlassPlus}
+                onClick={() => zoomFromCenter(BUTTON_ZOOM_FACTOR)}
+                disabled={view.zoom >= MAX_ZOOM}
+                label={t('setupEditor.toolbar.zoomIn')}
+              />
+              <IconButton
+                icon={faExpand}
+                onClick={() => setView(DEFAULT_VIEW)}
+                disabled={view.zoom <= 1}
+                label={t('setupEditor.toolbar.resetZoom')}
+              />
+              <IconButton icon={faDownload} onClick={exportImage} label={t('setupEditor.toolbar.export')} />
+              <IconButton
+                icon={faCircleQuestion}
+                onClick={() => (helpOpen ? closeHelp() : setHelpOpen(true))}
+                aria-pressed={helpOpen}
+                label={t('setupEditor.toolbar.help')}
+              />
+
+              {compact && selected && !editing && (
+                <Button variant="primary" icon={faPen} className="se-edit" onClick={() => setEditing(true)}>
+                  {t('setupEditor.toolbar.edit')}
+                </Button>
+              )}
+            </div>
+
+            <Button
+              variant="primary"
+              icon={faFloppyDisk}
+              className="se-save"
+              onClick={() => save()}
+              disabled={!dirty || saving}
+            >
+              {t('setupEditor.toolbar.save')}
+            </Button>
+          </>
+        )}
+      </header>
 
       {loading && <LoadingState />}
-      {!loading && !artist && <div className="error">{t('artistDetail.notFound')}</div>}
-      {!loading && artist && !saved && <div className="error">{t('setupEditor.loadError')}</div>}
+      {!loading && !artist && <p className="bt-empty se-message">{t('artistDetail.notFound')}</p>}
+      {!loading && artist && !saved && <p className="bt-empty se-message">{t('setupEditor.loadError')}</p>}
 
-      {!loading && artist && saved && (
+      {ready && (
         <div className="se-body">
           {!mobile && <ShapePalette onAdd={type => addShape(type)} />}
 
           <div className="se-workspace">
             {/* In sovrimpressione: non toglie spazio al palco */}
-            {helpOpen && <GestureHelp mobile={mobile} onClose={closeHelp} />}
+            {helpOpen && <GestureHelp mobile={mobile} compact={compact} onClose={closeHelp} />}
 
-            <div className="se-toolbar">
-              <div className="se-toolbar-group">
-                <button
-                  type="button"
-                  className="se-icon-button"
-                  onClick={() => setHistory(undo)}
-                  disabled={history.past.length === 0}
-                  title={t('setupEditor.toolbar.undo')}
-                  aria-label={t('setupEditor.toolbar.undo')}
-                >
-                  <FontAwesomeIcon icon={faRotateLeft} />
-                </button>
-                <button
-                  type="button"
-                  className="se-icon-button"
-                  onClick={() => setHistory(redo)}
-                  disabled={history.future.length === 0}
-                  title={t('setupEditor.toolbar.redo')}
-                  aria-label={t('setupEditor.toolbar.redo')}
-                >
-                  <FontAwesomeIcon icon={faRotateRight} />
-                </button>
-              </div>
-
-              <div className="se-toolbar-group">
-                <button
-                  type="button"
-                  className="se-icon-button"
-                  onClick={() => zoomFromCenter(1 / BUTTON_ZOOM_FACTOR)}
-                  disabled={view.zoom <= 1}
-                  title={t('setupEditor.toolbar.zoomOut')}
-                  aria-label={t('setupEditor.toolbar.zoomOut')}
-                >
-                  <FontAwesomeIcon icon={faMagnifyingGlassMinus} />
-                </button>
-                <button
-                  type="button"
-                  className="se-icon-button"
-                  onClick={() => zoomFromCenter(BUTTON_ZOOM_FACTOR)}
-                  disabled={view.zoom >= MAX_ZOOM}
-                  title={t('setupEditor.toolbar.zoomIn')}
-                  aria-label={t('setupEditor.toolbar.zoomIn')}
-                >
-                  <FontAwesomeIcon icon={faMagnifyingGlassPlus} />
-                </button>
-                <button
-                  type="button"
-                  className="se-icon-button"
-                  onClick={() => setView(DEFAULT_VIEW)}
-                  disabled={view.zoom <= 1}
-                  title={t('setupEditor.toolbar.resetZoom')}
-                  aria-label={t('setupEditor.toolbar.resetZoom')}
-                >
-                  <FontAwesomeIcon icon={faExpand} />
-                </button>
-              </div>
-
-              <div className="se-toolbar-group">
-                <button
-                  type="button"
-                  className="se-icon-button"
-                  onClick={exportImage}
-                  title={t('setupEditor.toolbar.export')}
-                  aria-label={t('setupEditor.toolbar.export')}
-                >
-                  <FontAwesomeIcon icon={faDownload} />
-                </button>
-                <button
-                  type="button"
-                  className="se-icon-button"
-                  onClick={() => (helpOpen ? closeHelp() : setHelpOpen(true))}
-                  aria-pressed={helpOpen}
-                  title={t('setupEditor.toolbar.help')}
-                  aria-label={t('setupEditor.toolbar.help')}
-                >
-                  <FontAwesomeIcon icon={faCircleQuestion} />
-                </button>
-              </div>
-
-              {mobile && selected && !editing && (
-                <button type="button" className="se-edit" onClick={() => setEditing(true)}>
-                  <FontAwesomeIcon icon={faPen} /> {t('setupEditor.toolbar.edit')}
-                </button>
-              )}
-
-              <span className={`se-status ${dirty ? 'se-status--dirty' : ''}`} role="status">
-                {t(saving ? 'setupEditor.toolbar.saving' : dirty ? 'setupEditor.toolbar.unsaved' : 'setupEditor.toolbar.saved')}
-              </span>
-
-              <button type="button" className="se-save" onClick={() => save()} disabled={!dirty || saving}>
-                <FontAwesomeIcon icon={faFloppyDisk} /> {t('setupEditor.toolbar.save')}
-              </button>
-            </div>
-
-            <div className="se-canvas-area" ref={canvasAreaRef}>
+            <div className="se-canvas-area" ref={canvasAreaRef} style={{ backgroundColor: STAGE_BACKGROUND }}>
               <StageCanvas
                 ref={canvasRef}
                 elements={elements}
@@ -450,6 +437,7 @@ const SetupEditor: React.FC = () => {
                 viewport={viewport}
                 view={view}
                 ariaLabel={t('setupEditor.canvasLabel')}
+                audienceLabel={t('setupEditor.audience')}
                 onViewChange={setView}
                 onSelect={selectShape}
                 onEdit={editShape}
@@ -460,11 +448,12 @@ const SetupEditor: React.FC = () => {
             </div>
           </div>
 
-          {mobile ? <ShapePalette onAdd={type => addShape(type)} /> : propertiesPanel}
+          {mobile && <ShapePalette onAdd={type => addShape(type)} />}
+          {!compact && propertiesPanel}
         </div>
       )}
 
-      {/* Cellulare: nome e colori in primo piano sopra il palco, agganciati alla pagina (nessun contenitore li taglia) */}
+      {/* Tablet e cellulare: nome e colori in primo piano sopra il palco, agganciati alla pagina */}
       {showPropertiesSheet && createPortal(
         <div
           className="se-sheet-backdrop"
@@ -480,29 +469,29 @@ const SetupEditor: React.FC = () => {
         document.body
       )}
 
-      <Modal
+      <Dialog
         open={conflict !== null}
         title={t('setupEditor.conflict.title')}
         onClose={() => setConflict(null)}
         preventClose={saving}
       >
-        <p className="bt-modal__message">
+        <p className="dialog-body">
           {conflict?.updatedBy?.name
             ? t('setupEditor.conflict.messageNamed', { name: conflict.updatedBy.name })
             : t('setupEditor.conflict.message')}
         </p>
-        <div className="se-conflict-actions">
-          <button type="button" className="bt-button bt-button--primary" onClick={loadRemoteVersion} disabled={saving}>
+        <div className="bt-dialog-stack">
+          <Button variant="primary" onClick={loadRemoteVersion} disabled={saving}>
             {t('setupEditor.conflict.loadTheirs')}
-          </button>
-          <button type="button" className="bt-button bt-button--danger" onClick={() => save(true)} disabled={saving}>
+          </Button>
+          <Button danger onClick={() => save(true)} disabled={saving}>
             {t('setupEditor.conflict.overwrite')}
-          </button>
-          <button type="button" className="bt-button bt-button--secondary" onClick={() => setConflict(null)} disabled={saving}>
+          </Button>
+          <Button onClick={() => setConflict(null)} disabled={saving}>
             {t('common.cancel')}
-          </button>
+          </Button>
         </div>
-      </Modal>
+      </Dialog>
 
       <ConfirmDialog
         open={copySource !== null}

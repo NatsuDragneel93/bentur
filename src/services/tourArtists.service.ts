@@ -3,6 +3,7 @@ import {
   addDoc,
   getDoc,
   getDocs,
+  getCountFromServer,
   doc,
   updateDoc
 } from 'firebase/firestore';
@@ -50,6 +51,17 @@ class TourArtistsService {
         .sort((a, b) => a.name.localeCompare(b.name));
     } catch (error) {
       console.error('Error getting tour artists:', error);
+      throw error;
+    }
+  }
+
+  // Solo il numero di artisti (lettura di aggregazione, senza scaricare i documenti)
+  async countTourArtists(tourId: string): Promise<number> {
+    try {
+      const snapshot = await getCountFromServer(this.artistsCollection(tourId));
+      return snapshot.data().count;
+    } catch (error) {
+      console.error('Error counting tour artists:', error);
       throw error;
     }
   }

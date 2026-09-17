@@ -28,7 +28,7 @@ describe('ArtistDetail', () => {
   it('la card To Check Before Showtime apre la lista dell\'artista', async () => {
     renderDetail();
 
-    await userEvent.click(await screen.findByRole('button', { name: /To Check Before Showtime/ }));
+    await userEvent.click(await screen.findByRole('link', { name: /To Check Before Showtime/ }));
 
     expect(await screen.findByText('Lista aperta')).toBeInTheDocument();
   });
@@ -36,7 +36,7 @@ describe('ArtistDetail', () => {
   it('la card Setup B apre l\'editor del setup', async () => {
     renderDetail();
 
-    await userEvent.click(await screen.findByRole('button', { name: /Setup B/ }));
+    await userEvent.click(await screen.findByRole('link', { name: /Setup B/ }));
 
     expect(await screen.findByText('Editor setup b')).toBeInTheDocument();
   });

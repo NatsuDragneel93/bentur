@@ -1,6 +1,6 @@
 import React from 'react';
-import type { ParseKeys } from 'i18next';
 import type { ListItem, NewItem } from '../../utils/categoryItems';
+import type { FormErrors } from '../../utils/formErrors';
 
 export interface ItemActions<TItem extends ListItem> {
   // Modifica immediata (aggiornamento ottimistico), es. spunta di un to-do
@@ -11,11 +11,13 @@ export interface ItemActions<TItem extends ListItem> {
 export interface ItemType<TItem extends ListItem, TForm> {
   emptyForm: TForm;
   toForm: (item: TItem) => TForm;
-  // Chiave di traduzione del messaggio di errore, oppure null se il form è valido
-  validate: (form: TForm) => ParseKeys | null;
+  // Errori per campo (chiavi di traduzione); oggetto vuoto se il form è valido
+  validate: (form: TForm) => FormErrors<TForm>;
   toData: (form: TForm) => NewItem<TItem>;
+  // Elementi con spunta: permette di mostrare l'avanzamento della categoria
+  isCompleted?: (item: TItem) => boolean;
   renderContent: (item: TItem, actions: ItemActions<TItem>) => React.ReactNode;
-  renderFields: (form: TForm, setForm: (form: TForm) => void) => React.ReactNode;
+  renderFields: (form: TForm, setForm: (form: TForm) => void, errors: FormErrors<TForm>) => React.ReactNode;
 }
 
 // Testi già tradotti, specifici della sezione (To Do, To Buy, Inventario...)

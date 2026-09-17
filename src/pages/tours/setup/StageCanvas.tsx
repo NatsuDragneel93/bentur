@@ -17,6 +17,7 @@ import {
   zoomAt,
 } from '../../../utils/stagePlot';
 import { SHAPE_DRAG_TYPE } from './ShapePalette';
+import { STAGE_ACCENT, STAGE_BACKGROUND, STAGE_BORDER, STAGE_CAPTION, STAGE_DOT, STAGE_FONT } from './stageTheme';
 
 // Necessario per il pizzico a due dita mentre un dito sta già trascinando
 Konva.hitOnDragEnabled = true;
@@ -28,15 +29,16 @@ const WHEEL_ZOOM_FACTOR = 1.1;
 const isCoarsePointer = () =>
   typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
 
-// Stile ispirato alla demo "Infinite Canvas" di Konva: angoli arrotondati, ombre morbide, colori pieni
+// Forme a colori pieni con angoli arrotondati e ombra morbida (come --shadow-md di Nocturne)
 const BODY_NAME = 'se-body';
-const SHADOW = { shadowColor: 'black', shadowOpacity: 0.45, shadowBlur: 10, shadowOffsetY: 4, shadowForStrokeEnabled: false };
+const SHADOW = { shadowColor: 'black', shadowOpacity: 0.55, shadowBlur: 18, shadowOffsetY: 6, shadowForStrokeEnabled: false };
 // Ombra più ampia mentre si trascina: la forma sembra sollevata dal palco
-const DRAG_SHADOW = { shadowBlur: 22, shadowOffsetY: 12 };
+const DRAG_SHADOW = { shadowBlur: 26, shadowOffsetY: 12 };
 
-const STAGE_COLOR = '#232327';
-const DOT_COLOR = 'rgba(255, 255, 255, 0.13)';
-const DOT_SPACING = 25;
+const DOT_SPACING = 26;
+// Scritta "Pubblico" sotto il bordo del palco, in pixel sullo schermo
+const CAPTION_FONT_SIZE = 10;
+const CAPTION_GAP = 8;
 
 // Sfondo a puntini del palco, disegnato come un'unica figura (migliaia di cerchi sarebbero lenti)
 const DottedGrid: React.FC = () => (
@@ -47,11 +49,11 @@ const DottedGrid: React.FC = () => (
       context.beginPath();
       for (let x = DOT_SPACING; x < STAGE_WIDTH; x += DOT_SPACING) {
         for (let y = DOT_SPACING; y < STAGE_HEIGHT; y += DOT_SPACING) {
-          context.moveTo(x + 1.5, y);
-          context.arc(x, y, 1.5, 0, Math.PI * 2);
+          context.moveTo(x + 1.2, y);
+          context.arc(x, y, 1.2, 0, Math.PI * 2);
         }
       }
-      context.fillStyle = DOT_COLOR;
+      context.fillStyle = STAGE_DOT;
       context.fill();
     }}
   />
@@ -116,7 +118,8 @@ const ShapeLabel: React.FC<{ element: StageElement }> = ({ element }) => {
       align="center"
       verticalAlign="middle"
       fontSize={type === 'text' ? 22 : 16}
-      fontStyle="bold"
+      fontFamily={STAGE_FONT}
+      fontStyle="500"
       fill={labelColor}
       padding={4}
       listening={false}
@@ -139,6 +142,8 @@ interface StageCanvasProps {
   viewport: Size;
   view: StageView;
   ariaLabel: string;
+  // Scritta sotto il bordo inferiore del palco (lato pubblico)
+  audienceLabel: string;
   onViewChange: (view: StageView) => void;
   onSelect: (id: string | null) => void;
   // Doppio clic / doppio tocco su una forma: apre nome e colori
@@ -159,6 +164,7 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
   viewport,
   view,
   ariaLabel,
+  audienceLabel,
   onViewChange,
   onSelect,
   onEdit,
@@ -314,14 +320,27 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
             name={BACKGROUND_NAME}
             width={STAGE_WIDTH}
             height={STAGE_HEIGHT}
-            fill={STAGE_COLOR}
-            cornerRadius={12}
-            stroke="rgba(255, 255, 255, 0.18)"
-            strokeWidth={1.5}
+            fill={STAGE_BACKGROUND}
+            cornerRadius={4}
+            stroke={STAGE_BORDER}
+            strokeWidth={1}
             strokeScaleEnabled={false}
-            dash={[10, 6]}
+            dash={[6, 4]}
           />
           <DottedGrid />
+          {/* Stessa dimensione sullo schermo a qualsiasi zoom; fuori dall'area esportata */}
+          <Text
+            text={audienceLabel.toUpperCase()}
+            x={0}
+            y={STAGE_HEIGHT + CAPTION_GAP / scale}
+            width={STAGE_WIDTH}
+            align="center"
+            fontSize={CAPTION_FONT_SIZE / scale}
+            fontFamily={STAGE_FONT}
+            letterSpacing={2 / scale}
+            fill={STAGE_CAPTION}
+            listening={false}
+          />
 
           {elements.map(element => (
             <Group
@@ -370,11 +389,11 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
                   ? ['top-left', 'top-right', 'bottom-left', 'bottom-right']
                   : undefined
             }
-            anchorSize={coarse ? 22 : 10}
-            anchorCornerRadius={coarse ? 11 : 5}
-            anchorStroke="#339af0"
-            anchorFill="#ffffff"
-            borderStroke="#339af0"
+            anchorSize={coarse ? 22 : 8}
+            anchorCornerRadius={coarse ? 11 : 0}
+            anchorStroke={STAGE_ACCENT}
+            anchorFill={STAGE_ACCENT}
+            borderStroke={STAGE_ACCENT}
             borderStrokeWidth={1.5}
             rotateAnchorOffset={coarse ? 40 : 30}
             flipEnabled={false}

@@ -16,3 +16,6 @@ export const useMediaQuery = (query: string): boolean => {
 
   return useSyncExternalStore(subscribe, () => supportsMatchMedia() && window.matchMedia(query).matches, () => false);
 };
+
+// Sotto questa larghezza (tablet e cellulare) i pannelli laterali diventano pannelli in primo piano
+export const COMPACT_MEDIA_QUERY = '(max-width: 1023px)';

@@ -1,41 +1,46 @@
-import React, { useId } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowDown, faArrowUp, faCheck, faClone, faTrash, faXmark } from '@fortawesome/free-solid-svg-icons';
-import { COLOR_PRESETS, MAX_LABEL_LENGTH, StageElement } from '../../../utils/stagePlot';
+import { faArrowDown, faArrowUp, faCheck, faCopy, faTrashCan, faXmark } from '@fortawesome/free-solid-svg-icons';
+import Button from '../../../components/ui/Button';
+import IconButton from '../../../components/ui/IconButton';
+import Field from '../../../components/ui/Field';
+import { Input } from '../../../components/ui/Input';
+import { FILL_PRESETS, LABEL_PRESETS, MAX_LABEL_LENGTH, StageElement } from '../../../utils/stagePlot';
 
 type EditableField = 'label' | 'fill' | 'labelColor';
 
 interface ColorFieldProps {
   label: string;
   value: string;
+  presets: readonly string[];
   onChange: (color: string) => void;
 }
 
-// Colori rapidi + selettore libero
-const ColorField: React.FC<ColorFieldProps> = ({ label, value, onChange }) => {
+// Colori rapidi del tema + selettore libero
+const ColorField: React.FC<ColorFieldProps> = ({ label, value, presets, onChange }) => {
   const { t } = useTranslation();
-  const inputId = useId();
+  const current = value.toLowerCase();
+  const isCustom = !presets.includes(current);
 
   return (
-    <div className="se-field">
-      <label htmlFor={inputId}>{label}</label>
+    <div className="field" role="group" aria-label={label}>
+      <span className="se-field-label">{label}</span>
       <div className="se-colors">
-        {COLOR_PRESETS.map(color => (
+        {presets.map(color => (
           <button
             key={color}
             type="button"
-            className={`se-swatch ${value.toLowerCase() === color ? 'se-swatch--active' : ''}`}
+            className={`se-swatch ${current === color ? 'se-swatch--active' : ''}`}
             style={{ backgroundColor: color }}
             onClick={() => onChange(color)}
             aria-label={t('setupEditor.properties.pickColor', { field: label, color })}
-            aria-pressed={value.toLowerCase() === color}
+            aria-pressed={current === color}
           />
         ))}
         <input
-          id={inputId}
           type="color"
-          className="se-color-input"
+          className={`se-swatch se-color-input ${isCustom ? 'se-swatch--active' : ''}`}
+          aria-label={t('setupEditor.properties.customColor', { field: label })}
           // Il selettore nativo accetta solo #rrggbb
           value={/^#[0-9a-f]{6}$/i.test(value) ? value : '#ffffff'}
           onChange={e => onChange(e.target.value)}
@@ -47,7 +52,7 @@ const ColorField: React.FC<ColorFieldProps> = ({ label, value, onChange }) => {
 
 interface ShapePropertiesProps {
   element: StageElement | null;
-  // side = colonna a destra (PC); sheet = pannello in primo piano sopra il palco (cellulare)
+  // side = colonna a destra (PC); sheet = pannello in primo piano sopra il palco (tablet e cellulare)
   variant: 'side' | 'sheet';
   canBringForward: boolean;
   canSendBackward: boolean;
@@ -59,7 +64,7 @@ interface ShapePropertiesProps {
   onClose: () => void;
 }
 
-// Pannello della forma selezionata: a destra su PC, in primo piano sopra il palco su cellulare
+// Pannello della forma selezionata: a destra su PC, in primo piano sopra il palco su tablet e cellulare
 const ShapeProperties: React.FC<ShapePropertiesProps> = ({
   element,
   variant,
@@ -73,7 +78,6 @@ const ShapeProperties: React.FC<ShapePropertiesProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const labelId = useId();
 
   if (!element) {
     return (
@@ -88,56 +92,53 @@ const ShapeProperties: React.FC<ShapePropertiesProps> = ({
   return (
     <aside className={`se-properties se-properties--${variant}`} aria-label={t('setupEditor.properties.title')}>
       <div className="se-properties-header">
-        <h2>{t(`setupEditor.shapes.${element.type}`)}</h2>
+        <h2>{t('setupEditor.properties.title')}</h2>
         {variant === 'sheet' ? (
-          <button type="button" className="se-save" onClick={onClose}>
-            <FontAwesomeIcon icon={faCheck} /> {t('setupEditor.properties.done')}
-          </button>
+          <Button variant="primary" icon={faCheck} onClick={onClose}>
+            {t('setupEditor.properties.done')}
+          </Button>
         ) : (
-          <button type="button" className="se-icon-button" onClick={onClose} aria-label={t('setupEditor.properties.close')}>
-            <FontAwesomeIcon icon={faXmark} />
-          </button>
+          <IconButton icon={faXmark} variant="ghost" onClick={onClose} label={t('setupEditor.properties.close')} />
         )}
       </div>
 
-      <div className="se-field">
-        <label htmlFor={labelId}>{t(isText ? 'setupEditor.properties.text' : 'setupEditor.properties.name')}</label>
-        <input
-          id={labelId}
-          type="text"
+      <Field label={t(isText ? 'setupEditor.properties.text' : 'setupEditor.properties.name')}>
+        <Input
           value={element.label}
           maxLength={MAX_LABEL_LENGTH}
           placeholder={t('setupEditor.properties.namePlaceholder')}
           onChange={e => onChange('label', e.target.value)}
         />
-      </div>
+      </Field>
 
       {!isText && (
         <ColorField
           label={t(element.type === 'line' ? 'setupEditor.properties.lineColor' : 'setupEditor.properties.fill')}
           value={element.fill}
+          presets={FILL_PRESETS}
           onChange={color => onChange('fill', color)}
         />
       )}
       <ColorField
         label={t('setupEditor.properties.textColor')}
         value={element.labelColor}
+        presets={LABEL_PRESETS}
         onChange={color => onChange('labelColor', color)}
       />
 
       <div className="se-properties-actions">
-        <button type="button" className="se-action" onClick={onDuplicate}>
-          <FontAwesomeIcon icon={faClone} /> {t('setupEditor.properties.duplicate')}
-        </button>
-        <button type="button" className="se-action" onClick={onBringForward} disabled={!canBringForward}>
-          <FontAwesomeIcon icon={faArrowUp} /> {t('setupEditor.properties.bringForward')}
-        </button>
-        <button type="button" className="se-action" onClick={onSendBackward} disabled={!canSendBackward}>
-          <FontAwesomeIcon icon={faArrowDown} /> {t('setupEditor.properties.sendBackward')}
-        </button>
-        <button type="button" className="se-action se-action--danger" onClick={onDelete}>
-          <FontAwesomeIcon icon={faTrash} /> {t('setupEditor.deleteShape')}
-        </button>
+        <Button icon={faCopy} onClick={onDuplicate}>
+          {t('setupEditor.properties.duplicate')}
+        </Button>
+        <Button icon={faArrowUp} onClick={onBringForward} disabled={!canBringForward}>
+          {t('setupEditor.properties.bringForward')}
+        </Button>
+        <Button icon={faArrowDown} onClick={onSendBackward} disabled={!canSendBackward}>
+          {t('setupEditor.properties.sendBackward')}
+        </Button>
+        <Button icon={faTrashCan} danger onClick={onDelete}>
+          {t('setupEditor.deleteShape')}
+        </Button>
       </div>
     </aside>
   );

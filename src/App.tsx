@@ -12,7 +12,6 @@ import ToBuy from './pages/to-buy/ToBuy';
 import MyInventory from './pages/my-inventory/MyInventory';
 import Manuals from './pages/manuals/Manuals';
 import UsefulContacts from './pages/useful-contacts/UsefulContacts';
-import Header from './components/Header';
 import MyInventoryPersonal from './pages/my-inventory/personal/MyInventoryPersonal';
 import MyInventoryTour from './pages/my-inventory/tour/MyInventoryTour';
 import { AuthProvider } from './context/AuthProvider';
@@ -35,7 +34,6 @@ const App: React.FC = () => {
                 path="/*"
                 element={
                   <ProtectedRoute>
-                    <Header />
                     <Routes>
                       <Route path="/home" element={<Home />} />
                       <Route path="/tours" element={<Tours />} />

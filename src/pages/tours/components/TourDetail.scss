@@ -1,234 +1,42 @@
-.tour-detail-container {
-  padding: 1rem;
-  color: #ffffff;
-  height: 100vh;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column; 
-  background-color: black;
-}
-
-.tour-detail-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-/* Header */
-.tour-detail-header {
-  margin-bottom: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.back-button {
-  background: #1a1a1a;
-  color: #ffffff;
-  border: 1px solid #666;
-  padding: 0.5rem 1rem;
-  border-radius: 0.25rem;
-  cursor: pointer;
-  font-size: 1rem;
-  align-self: flex-start;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.back-button:hover {
-  background-color: #333;
-  border-color: #999;
-}
-
-.tour-detail-header h1 {
-  margin: 0;
-  font-size: 2rem;
-  font-weight: bold;
-  color: #ffffff;
-  text-align: center;
-}
-
-/* Document buttons */
-.tour-documents {
-  margin-bottom: 2rem;
-}
-
-.document-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  justify-content: center;
-}
-
-.document-button {
-  background: #1a1a1a;
-  color: #ffffff;
-  border: 1px solid #666;
-  padding: 1rem 1.5rem;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
-  min-width: 140px;
-  justify-content: center;
-}
-
-.document-button:hover {
-  background: #333;
-  border-color: #999;
-}
-
-.document-button.share-button {
-  background: #1a1a1a;
-  border-color: #666;
-}
-
-.document-button.share-button:hover {
-  background: #333;
-  border-color: #999;
-}
-
-/* Artists section */
-.artists-section {
-  flex: 1;
-  margin-bottom: 1rem;
-}
-
-.artists-section h2 {
-  margin: 0 0 1rem 0;
-  font-size: 1.5rem;
-  color: #ffffff;
-  text-align: center;
-}
-
-.artists-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.artist-item {
-  background: #222;
-  border: 1px solid #333;
-  border-radius: 0.5rem;
-  padding: 0.75rem;
-  margin-bottom: 0.5rem;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
-}
-
-.artist-item:hover {
-  background: #2a2a2a;
-  border-color: #555;
-}
-
-.artist-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.artist-info {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-
-.artist-info.clickable {
-  cursor: pointer;
-  transition: color 0.3s ease;
-}
-
-.artist-info.clickable:hover {
-  color: #4CAF50;
-}
-
-.artist-name {
-  font-weight: bold;
-  font-size: 1.1rem;
-  color: #ffffff;
-  margin-bottom: 0.25rem;
-}
-
-.artist-role {
-  color: #ccc;
-  font-size: 0.9rem;
-}
-
-.artist-actions {
-  display: flex;
-  gap: 20px;
-}
-
-.artist-edit-button {
-  padding: 5px 10px !important;
-  background-color: #1a1a1a;
-  color: #ffffff;
-  border: 1px solid transparent;
-  border-radius: 0.25rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
-}
-
-.artist-edit-button:hover {
-  background-color: #333;
-  border-color: #999;
-}
-
-.artist-delete-button {
-  background-color: #dc3545;
-  padding: 5px 10px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s;
-}
-
-.artist-delete-button:hover {
-  background-color: #c82333;
-}
-
-/* Responsive design */
-@media (max-width: 768px) {
-  .tour-detail-container {
-    padding: 0.5rem;
+.tour-detail {
+  &__title {
+    margin-bottom: 26px;
   }
 
-  .tour-detail-header h1 {
-    font-size: 1.5rem;
+  &__documents {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 48px;
   }
 
-  .document-buttons {
-    flex-direction: column;
-    align-items: center;
+  &__document {
+    height: 44px;
+    padding-inline: 18px;
+    gap: 9px;
   }
 
-  .document-button {
-    width: 100%;
-    max-width: 300px;
+  // "Artisti": titolo di sezione, più piccolo del titolo della pagina
+  &__artists-header {
+    margin-bottom: 22px;
+
+    .bt-page-title {
+      font-size: 26px;
+    }
   }
 
-  .artist-content {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
+  @media (max-width: 768px) {
+    &__documents {
+      flex-direction: column;
+      margin-bottom: 36px;
+    }
 
-  .artist-actions {
-    align-self: flex-end;
+    &__document {
+      width: 100%;
+    }
+
+    &__artists-header .bt-page-title {
+      font-size: 22px;
+    }
   }
 }

@@ -9,6 +9,7 @@ vi.mock('firebase/firestore', () => ({
   where: vi.fn(),
   getDoc: vi.fn(),
   getDocs: vi.fn(),
+  getCountFromServer: vi.fn(),
   addDoc: vi.fn(),
   updateDoc: vi.fn(),
   writeBatch: vi.fn(),
@@ -35,6 +36,16 @@ describe('tourArtistsService', () => {
 
     expect(mocked.getDocs).toHaveBeenCalledWith('collection:tours/t1/artists');
     expect(artists.map(a => [a.name, a.tourId])).toEqual([['Anna', 't1'], ['Zoe', 't1']]);
+  });
+
+  it('conta gli artisti del tour senza leggerne i documenti', async () => {
+    mocked.getCountFromServer.mockResolvedValue(
+      { data: () => ({ count: 3 }) } as unknown as Awaited<ReturnType<typeof firestore.getCountFromServer>>
+    );
+
+    expect(await tourArtistsService.countTourArtists('t1')).toBe(3);
+    expect(mocked.getCountFromServer).toHaveBeenCalledWith('collection:tours/t1/artists');
+    expect(mocked.getDocs).not.toHaveBeenCalled();
   });
 
   it('aggiunge l\'artista nella sottocollection del tour', async () => {

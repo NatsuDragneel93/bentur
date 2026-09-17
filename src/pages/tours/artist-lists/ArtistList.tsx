@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import CategoryListPage from '../../../components/category-list/CategoryListPage';
 import { checklistItemType, consumableItemType, inventoryItemType } from '../../../components/category-list/itemTypes';
 import LoadingState from '../../../components/ui/LoadingState';
+import { BackLink, Page, TopBar } from '../../../components/ui/PageLayout';
 import {
   artistCheckBeforeShowService,
   artistConsumablesService,
@@ -18,9 +19,9 @@ import { useTourArtist } from '../useTourArtist';
 interface ListProps {
   tourId: string;
   artistId: string;
-  // Nome dell'artista, mostrato sotto il titolo
-  subtitle: string;
-  back: { label: string; onClick: () => void };
+  // Artista e ruolo, mostrati sopra il titolo
+  kicker: string;
+  back: BackLink;
 }
 
 const SpareList: React.FC<ListProps> = ({ tourId, artistId, ...header }) => {
@@ -133,16 +134,13 @@ const ArtistList: React.FC = () => {
     return <Navigate to={artistPath(tourId, artistId)} replace />;
   }
 
-  if (loading) {
+  if (loading || !artist) {
     return (
-      <div className="cl-page">
-        <LoadingState />
-      </div>
+      <Page>
+        <TopBar back={{ label: t('nav.tours'), onClick: () => navigate(`/tours/${tourId}`) }} />
+        {loading ? <LoadingState /> : <p className="bt-empty">{t('artistDetail.notFound')}</p>}
+      </Page>
     );
-  }
-
-  if (!artist) {
-    return <div className="error">{t('artistDetail.notFound')}</div>;
   }
 
   const List = LISTS[listKey];
@@ -151,8 +149,8 @@ const ArtistList: React.FC = () => {
     <List
       tourId={tourId}
       artistId={artistId}
-      subtitle={artist.name}
-      back={{ label: t('artistLists.back'), onClick: () => navigate(artistPath(tourId, artistId)) }}
+      kicker={`${artist.name} · ${artist.role}`}
+      back={{ label: artist.name, onClick: () => navigate(artistPath(tourId, artistId)) }}
     />
   );
 };
