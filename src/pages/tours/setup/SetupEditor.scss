@@ -1,5 +1,9 @@
 // Prefisso "se-" (setup editor) per non collidere con le classi globali delle altre pagine
 
+$se-orange: #e67e22;
+$se-green: #004d25;
+$se-red: #dc3545;
+
 .se-page {
   display: flex;
   flex-direction: column;
@@ -20,6 +24,7 @@
   display: flex;
   align-items: center;
   gap: 16px;
+  margin-bottom: 12px;
 
   @media (max-width: 768px) {
     flex-direction: column;
@@ -61,24 +66,20 @@
   }
 }
 
-.se-notice {
-  margin: 8px 0;
-  color: #e67e22;
-  font-size: 0.9rem;
-  text-align: center;
-}
-
 .se-body {
   display: flex;
   flex: 1;
   min-height: 0;
   gap: 12px;
 
-  // Su cellulare la palette diventa una barra sotto il palco
+  // Su cellulare: palco e strumenti sopra, forme sotto; le proprietà si aprono dal basso
   @media (max-width: 768px) {
     flex-direction: column-reverse;
+    padding-bottom: 8px;
   }
 }
+
+// --- Palette ---
 
 .se-palette {
   display: flex;
@@ -118,6 +119,8 @@
   }
 }
 
+// --- Area di lavoro ---
+
 .se-workspace {
   display: flex;
   flex: 1;
@@ -125,6 +128,81 @@
   min-width: 0;
   min-height: 0;
   gap: 8px;
+}
+
+.se-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.se-toolbar-group {
+  display: flex;
+  gap: 4px;
+  padding-right: 8px;
+  border-right: 1px solid #333333;
+}
+
+.se-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid #444444;
+  border-radius: 6px;
+  background-color: #222222;
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  touch-action: manipulation;
+
+  &:hover:not(:disabled) {
+    background-color: #333333;
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+}
+
+.se-status {
+  flex: 1;
+  color: #888888;
+  font-size: 0.85rem;
+  text-align: right;
+  white-space: nowrap;
+
+  &--dirty {
+    color: $se-orange;
+  }
+}
+
+.se-save {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 1.2rem;
+  border: none;
+  border-radius: 6px;
+  background-color: $se-green;
+  color: white;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background-color: #006b33;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
 }
 
 .se-canvas-area {
@@ -145,27 +223,141 @@
 
 .se-canvas {
   line-height: 0;
+  // I gesti sul palco (trascinamento, pizzico) non devono scorrere o ingrandire la pagina
+  touch-action: none;
 }
 
-.se-actions {
+// --- Pannello proprietà ---
+
+.se-properties {
   display: flex;
-  justify-content: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 14px;
+  flex-shrink: 0;
+  width: 260px;
+  box-sizing: border-box;
+  padding: 12px;
+  overflow-y: auto;
+  border: 1px solid #333333;
+  border-radius: 8px;
+  background-color: #151515;
+
+  &--empty p {
+    margin: 0;
+    color: #888888;
+    text-align: center;
+  }
+
+  // Su cellulare: pannello a scomparsa dal basso, solo con una forma selezionata
+  @media (max-width: 768px) {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 900;
+    width: auto;
+    max-height: 55vh;
+    border-radius: 14px 14px 0 0;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.6);
+
+    &--empty {
+      display: none;
+    }
+  }
+}
+
+.se-properties-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  h2 {
+    margin: 0;
+    font-size: 1.1rem;
+  }
+}
+
+.se-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  > label {
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: #cccccc;
+  }
+
+  input[type='text'] {
+    padding: 8px;
+    border: 1px solid #444444;
+    border-radius: 4px;
+    background-color: #222222;
+    color: white;
+    font-size: 1rem;
+
+    &:focus {
+      outline: none;
+      border-color: #2e8b57;
+    }
+  }
+}
+
+.se-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.se-swatch {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 2px solid #444444;
+  border-radius: 50%;
+  cursor: pointer;
+
+  &--active {
+    border-color: $se-orange;
+    box-shadow: 0 0 0 2px black inset;
+  }
+}
+
+.se-color-input {
+  width: 32px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.se-properties-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
 }
 
 .se-action {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 0.375rem;
+  justify-content: center;
+  gap: 6px;
+  padding: 0.5rem;
+  border: 1px solid #444444;
+  border-radius: 6px;
   background-color: #222222;
   color: white;
+  font-size: 0.85rem;
   cursor: pointer;
 
+  &:hover:not(:disabled) {
+    background-color: #333333;
+  }
+
   &--danger {
-    background-color: #dc3545;
+    border-color: $se-red;
+    background-color: $se-red;
 
     &:hover:not(:disabled) {
       background-color: #a71d2a;
@@ -175,5 +367,18 @@
   &:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+  }
+}
+
+// --- Dialogo di conflitto ---
+
+.se-conflict-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 20px;
+
+  .bt-button {
+    width: 100%;
   }
 }

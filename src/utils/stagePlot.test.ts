@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
+  clampView,
+  copyElements,
   createElement,
+  DEFAULT_VIEW,
+  duplicateElement,
+  exportFileName,
   fitScale,
+  MAX_ZOOM,
+  reorderElement,
+  sameElements,
+  visibleCenter,
+  zoomAt,
   isShapeType,
   MIN_ELEMENT_SIZE,
   moveElement,
@@ -88,6 +98,62 @@ describe('stagePlot', () => {
     expect(elements[0]).toMatchObject({ x: 100, y: 50, width: 160, height: 90, rotation: 0, label: 'Batteria', fill: '#00aaff' });
     expect(elements[1]).toMatchObject({ x: 0, y: 20, width: MIN_ELEMENT_SIZE, label: '' });
     expect(normalizeElements(undefined)).toEqual([]);
+  });
+
+  it('spawnPosition parte dal centro indicato (parte visibile del palco)', () => {
+    const position = spawnPosition(3, { x: 200, y: 100 });
+
+    expect(position).toEqual({ x: 200, y: 100 });
+  });
+
+  it('duplicateElement aggiunge una copia spostata in primo piano', () => {
+    const elements = [createElement('rect', 'a', { x: 100, y: 100 }, 'Batteria'), createElement('circle', 'b', { x: 0, y: 0 })];
+
+    const result = duplicateElement(elements, 'a', 'c');
+
+    expect(result.map(e => e.id)).toEqual(['a', 'b', 'c']);
+    expect(result[2]).toMatchObject({ x: 120, y: 120, label: 'Batteria', type: 'rect' });
+    expect(duplicateElement(elements, 'x', 'c')).toBe(elements);
+  });
+
+  it('reorderElement porta avanti e indietro senza uscire dai limiti', () => {
+    const elements = ['a', 'b', 'c'].map(id => createElement('circle', id, { x: 0, y: 0 }));
+    const ids = (list: typeof elements) => list.map(e => e.id);
+
+    expect(ids(reorderElement(elements, 'a', 'forward'))).toEqual(['b', 'a', 'c']);
+    expect(ids(reorderElement(elements, 'c', 'backward'))).toEqual(['a', 'c', 'b']);
+    expect(reorderElement(elements, 'c', 'forward')).toBe(elements);
+    expect(reorderElement(elements, 'a', 'backward')).toBe(elements);
+  });
+
+  it('copyElements copia le forme con id nuovi', () => {
+    const elements = [createElement('rect', 'a', { x: 100, y: 100 }, 'Batteria')];
+    let counter = 0;
+
+    const copy = copyElements(elements, () => `new-${++counter}`);
+
+    expect(copy).toEqual([{ ...elements[0], id: 'new-1' }]);
+    expect(sameElements(elements, copy)).toBe(false);
+    expect(sameElements(elements, [{ ...elements[0] }])).toBe(true);
+  });
+
+  it('zoomAt ingrandisce mantenendo fermo il punto indicato', () => {
+    // Tela 500x300 (baseScale 0.5): il punto (250, 150) è il centro del palco
+    const view = zoomAt(DEFAULT_VIEW, 0.5, { x: 250, y: 150 }, 2);
+
+    expect(view).toEqual({ zoom: 2, x: -250, y: -150 });
+    expect(visibleCenter(view, 0.5)).toEqual({ x: STAGE_WIDTH / 2, y: STAGE_HEIGHT / 2 });
+  });
+
+  it('zoomAt e clampView restano nei limiti di zoom e non mostrano bordi vuoti', () => {
+    expect(zoomAt(DEFAULT_VIEW, 0.5, { x: 0, y: 0 }, 100).zoom).toBe(MAX_ZOOM);
+    expect(zoomAt(DEFAULT_VIEW, 0.5, { x: 0, y: 0 }, 0.1)).toEqual(DEFAULT_VIEW);
+    expect(clampView({ zoom: 2, x: 50, y: -9999 }, 0.5)).toEqual({ zoom: 2, x: 0, y: -300 });
+  });
+
+  it('exportFileName crea un nome file senza accenti né spazi', () => {
+    expect(exportFileName('Màneskin & Co.', 'b')).toBe('setup-b-maneskin-co.png');
+    expect(exportFileName('   ', 'a')).toBe('setup-a.png');
   });
 
   it('fitScale fa entrare il palco nello spazio disponibile', () => {

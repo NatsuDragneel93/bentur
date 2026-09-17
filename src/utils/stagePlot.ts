@@ -41,13 +41,29 @@ export const keepsRatio = (type: ShapeType): boolean => type === 'circle' || typ
 
 export const clamp = (value: number, min: number, max: number): number => Math.min(Math.max(value, min), max);
 
+// Lunghezza massima del nome di una forma
+export const MAX_LABEL_LENGTH = 60;
+
+// Colori proposti nel pannello proprietà (resta disponibile anche il selettore libero)
+export const COLOR_PRESETS = [
+  '#ffffff', '#9e9e9e', '#000000', '#4a90d9', '#5bc0eb',
+  '#2ecc71', '#f1c40f', '#e67e22', '#e74c3c', '#9b59b6',
+];
+
+export interface Point {
+  x: number;
+  y: number;
+}
+
+const STAGE_CENTER: Point = { x: STAGE_WIDTH / 2, y: STAGE_HEIGHT / 2 };
+
 /**
- * Posizione di una nuova forma aggiunta con un tocco: vicino al centro,
+ * Posizione di una nuova forma aggiunta con un tocco: vicino al centro della parte visibile,
  * spostata un po' a ogni aggiunta così le forme non finiscono una sopra l'altra.
  */
-export const spawnPosition = (existingCount: number): { x: number; y: number } => {
-  const step = (existingCount % 8) * 20;
-  return { x: STAGE_WIDTH / 2 - 70 + step, y: STAGE_HEIGHT / 2 - 70 + step };
+export const spawnPosition = (existingCount: number, center: Point = STAGE_CENTER): Point => {
+  const step = ((existingCount % 8) - 3) * 20;
+  return { x: clamp(center.x + step, 0, STAGE_WIDTH), y: clamp(center.y + step, 0, STAGE_HEIGHT) };
 };
 
 export const createElement = (
@@ -73,6 +89,33 @@ export const updateElement = (
 
 export const removeElement = (elements: StageElement[], id: string): StageElement[] =>
   elements.filter(element => element.id !== id);
+
+// Copia della forma leggermente spostata, in primo piano
+export const duplicateElement = (elements: StageElement[], id: string, newId: string): StageElement[] => {
+  const source = elements.find(element => element.id === id);
+  if (!source) return elements;
+
+  const copy = { ...source, id: newId, x: clamp(source.x + 20, 0, STAGE_WIDTH), y: clamp(source.y + 20, 0, STAGE_HEIGHT) };
+  return [...elements, copy];
+};
+
+// Le forme successive nell'array sono disegnate sopra le precedenti
+export const reorderElement = (elements: StageElement[], id: string, move: 'forward' | 'backward'): StageElement[] => {
+  const index = elements.findIndex(element => element.id === id);
+  const target = move === 'forward' ? index + 1 : index - 1;
+  if (index === -1 || target < 0 || target >= elements.length) return elements;
+
+  const result = [...elements];
+  [result[index], result[target]] = [result[target], result[index]];
+  return result;
+};
+
+// Copia di un intero setup (es. da Setup A a Setup B): stesse forme con id nuovi
+export const copyElements = (elements: StageElement[], createId: () => string): StageElement[] =>
+  elements.map(element => ({ ...element, id: createId() }));
+
+export const sameElements = (a: StageElement[], b: StageElement[]): boolean =>
+  a === b || JSON.stringify(a) === JSON.stringify(b);
 
 // Fine di uno spostamento: il centro resta dentro il palco
 export const moveElement = (elements: StageElement[], id: string, x: number, y: number): StageElement[] =>
@@ -148,4 +191,60 @@ export const normalizeElements = (raw: unknown): StageElement[] => {
 export const fitScale = (availableWidth: number, availableHeight: number): number => {
   if (availableWidth <= 0 || availableHeight <= 0) return 1;
   return Math.min(availableWidth / STAGE_WIDTH, availableHeight / STAGE_HEIGHT);
+};
+
+// --- Zoom e spostamento della vista ---
+// La tela ha sempre le dimensioni del palco adattato (baseScale); dentro, il disegno
+// è ingrandito di `zoom` e spostato di (x, y) pixel.
+
+export interface StageView {
+  zoom: number;
+  x: number;
+  y: number;
+}
+
+export const MIN_ZOOM = 1;
+export const MAX_ZOOM = 4;
+export const DEFAULT_VIEW: StageView = { zoom: 1, x: 0, y: 0 };
+
+// Il disegno ingrandito deve sempre coprire tutta la tela (niente bordi vuoti)
+export const clampView = (view: StageView, baseScale: number): StageView => {
+  const zoom = clamp(view.zoom, MIN_ZOOM, MAX_ZOOM);
+  const viewportWidth = STAGE_WIDTH * baseScale;
+  const viewportHeight = STAGE_HEIGHT * baseScale;
+  return {
+    zoom,
+    x: clamp(view.x, viewportWidth - viewportWidth * zoom, 0),
+    y: clamp(view.y, viewportHeight - viewportHeight * zoom, 0),
+  };
+};
+
+// Zoom mantenendo fermo il punto indicato (in pixel della tela), es. il puntatore o il centro del pizzico
+export const zoomAt = (view: StageView, baseScale: number, point: Point, factor: number): StageView => {
+  const oldScale = baseScale * view.zoom;
+  const zoom = clamp(view.zoom * factor, MIN_ZOOM, MAX_ZOOM);
+  const logicalX = (point.x - view.x) / oldScale;
+  const logicalY = (point.y - view.y) / oldScale;
+  return clampView({ zoom, x: point.x - logicalX * baseScale * zoom, y: point.y - logicalY * baseScale * zoom }, baseScale);
+};
+
+// Centro della parte di palco visibile, in unità logiche
+export const visibleCenter = (view: StageView, baseScale: number): Point => {
+  const scale = baseScale * view.zoom;
+  return {
+    x: (STAGE_WIDTH * baseScale / 2 - view.x) / scale,
+    y: (STAGE_HEIGHT * baseScale / 2 - view.y) / scale,
+  };
+};
+
+// Nome del file PNG esportato, es. "setup-a-tananai.png"
+export const exportFileName = (artistName: string, setupKey: string): string => {
+  const slug = artistName
+    .normalize('NFD')
+    // Toglie gli accenti (lettere decomposte da normalize)
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return `setup-${setupKey}${slug ? `-${slug}` : ''}.png`;
 };

@@ -1,19 +1,27 @@
-import React, { useEffect, useRef } from 'react';
-import type Konva from 'konva';
+import React, { useEffect, useImperativeHandle, useRef } from 'react';
+import Konva from 'konva';
 import { Ellipse, Group, Layer, Line, Rect, Stage, Text, Transformer } from 'react-konva';
 import {
+  clampView,
   isShapeType,
   keepsRatio,
   MIN_ELEMENT_SIZE,
+  Point,
   ShapeType,
   STAGE_HEIGHT,
   STAGE_WIDTH,
   StageElement,
+  StageView,
   TransformResult,
+  zoomAt,
 } from '../../../utils/stagePlot';
 import { SHAPE_DRAG_TYPE } from './ShapePalette';
 
+// Necessario per il pizzico a due dita mentre un dito sta già trascinando
+Konva.hitOnDragEnabled = true;
+
 const BACKGROUND_NAME = 'se-background';
+const WHEEL_ZOOM_FACTOR = 1.1;
 
 // Maniglie più grandi sui dispositivi touch
 const isCoarsePointer = () =>
@@ -64,23 +72,37 @@ const ShapeLabel: React.FC<{ element: StageElement }> = ({ element }) => {
   );
 };
 
+export interface StageCanvasHandle {
+  // Immagine PNG dell'intero palco (senza maniglie di selezione), come data URL
+  exportImage: () => string | null;
+}
+
 interface StageCanvasProps {
+  ref?: React.Ref<StageCanvasHandle>;
   elements: StageElement[];
   selectedId: string | null;
-  // Rapporto tra pixel sullo schermo e unità logiche del palco
-  scale: number;
+  // Rapporto tra pixel sullo schermo e unità logiche del palco, senza zoom
+  baseScale: number;
+  view: StageView;
   ariaLabel: string;
+  onViewChange: (view: StageView) => void;
   onSelect: (id: string | null) => void;
   onMove: (id: string, x: number, y: number) => void;
   onTransform: (id: string, result: TransformResult) => void;
-  onDropShape: (type: ShapeType, position: { x: number; y: number }) => void;
+  onDropShape: (type: ShapeType, position: Point) => void;
 }
 
+const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
+const middle = (a: Point, b: Point): Point => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+
 const StageCanvas: React.FC<StageCanvasProps> = ({
+  ref,
   elements,
   selectedId,
-  scale,
+  baseScale,
+  view,
   ariaLabel,
+  onViewChange,
   onSelect,
   onMove,
   onTransform,
@@ -88,7 +110,10 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
 }) => {
   const stageRef = useRef<Konva.Stage>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
+  // Stato del pizzico a due dita in corso
+  const pinchRef = useRef<{ center: Point; distance: number } | null>(null);
   const selected = elements.find(element => element.id === selectedId) ?? null;
+  const scale = baseScale * view.zoom;
 
   // Collega le maniglie di ridimensionamento/rotazione alla forma selezionata
   useEffect(() => {
@@ -100,6 +125,29 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
     transformer.nodes(node ? [node] : []);
     transformer.getLayer()?.batchDraw();
   }, [selectedId, elements]);
+
+  useImperativeHandle(ref, () => ({
+    exportImage: () => {
+      const stage = stageRef.current;
+      const transformer = transformerRef.current;
+      if (!stage) return null;
+
+      // Esporta il palco intero a 2000x1200 px, indipendentemente da zoom e schermo
+      transformer?.visible(false);
+      try {
+        return stage.toDataURL({
+          x: view.x,
+          y: view.y,
+          width: STAGE_WIDTH * scale,
+          height: STAGE_HEIGHT * scale,
+          pixelRatio: 2 / scale,
+          mimeType: 'image/png',
+        });
+      } finally {
+        transformer?.visible(true);
+      }
+    },
+  }), [view, scale]);
 
   const deselectOnEmpty = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     if (e.target === e.target.getStage() || e.target.name() === BACKGROUND_NAME) {
@@ -114,10 +162,9 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
 
     e.preventDefault();
     stage.setPointersPositions(e.nativeEvent);
-    const pointer = stage.getPointerPosition();
-    if (pointer) {
-      onDropShape(type, { x: pointer.x / scale, y: pointer.y / scale });
-    }
+    // Posizione già convertita in unità logiche (tiene conto di zoom e spostamento)
+    const position = stage.getRelativePointerPosition();
+    if (position) onDropShape(type, position);
   };
 
   const handleTransformEnd = (element: StageElement, e: Konva.KonvaEventObject<Event>) => {
@@ -126,6 +173,46 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
     // Le dimensioni diventano width/height: la scala del nodo torna a 1
     node.scale({ x: 1, y: 1 });
     onTransform(element.id, result);
+  };
+
+  // Rotella del mouse: zoom verso il puntatore
+  const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
+    const pointer = stageRef.current?.getPointerPosition();
+    if (!pointer) return;
+
+    e.evt.preventDefault();
+    const factor = e.evt.deltaY < 0 ? WHEEL_ZOOM_FACTOR : 1 / WHEEL_ZOOM_FACTOR;
+    onViewChange(zoomAt(view, baseScale, pointer, factor));
+  };
+
+  // Due dita: zoom (pizzico) e spostamento della vista insieme
+  const handleTouchMove = (e: Konva.KonvaEventObject<TouchEvent>) => {
+    const stage = stageRef.current;
+    const [touch1, touch2] = Array.from(e.evt.touches);
+    if (!stage || !touch1 || !touch2) return;
+
+    e.evt.preventDefault();
+    // Il pizzico ha la precedenza sul trascinamento iniziato con il primo dito
+    if (stage.isDragging()) stage.stopDrag();
+    stage.find('.se-element').forEach(node => {
+      if (node.isDragging()) node.stopDrag();
+    });
+
+    const rect = stage.container().getBoundingClientRect();
+    const p1 = { x: touch1.clientX - rect.left, y: touch1.clientY - rect.top };
+    const p2 = { x: touch2.clientX - rect.left, y: touch2.clientY - rect.top };
+    const center = middle(p1, p2);
+    const currentDistance = distance(p1, p2);
+
+    const previous = pinchRef.current;
+    pinchRef.current = { center, distance: currentDistance };
+    if (!previous || previous.distance === 0) return;
+
+    const zoomed = zoomAt(view, baseScale, center, currentDistance / previous.distance);
+    onViewChange(clampView(
+      { ...zoomed, x: zoomed.x + center.x - previous.center.x, y: zoomed.y + center.y - previous.center.y },
+      baseScale
+    ));
   };
 
   const coarse = isCoarsePointer();
@@ -141,12 +228,26 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
     >
       <Stage
         ref={stageRef}
-        width={STAGE_WIDTH * scale}
-        height={STAGE_HEIGHT * scale}
+        width={STAGE_WIDTH * baseScale}
+        height={STAGE_HEIGHT * baseScale}
         scaleX={scale}
         scaleY={scale}
+        x={view.x}
+        y={view.y}
+        // Con lo zoom attivo si sposta la vista trascinando lo sfondo
+        draggable={view.zoom > 1}
+        dragBoundFunc={pos => {
+          const bounded = clampView({ zoom: view.zoom, x: pos.x, y: pos.y }, baseScale);
+          return { x: bounded.x, y: bounded.y };
+        }}
+        onDragEnd={e => {
+          if (e.target === stageRef.current) onViewChange({ zoom: view.zoom, x: e.target.x(), y: e.target.y() });
+        }}
+        onWheel={handleWheel}
         onMouseDown={deselectOnEmpty}
         onTouchStart={deselectOnEmpty}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={() => { pinchRef.current = null; }}
       >
         <Layer>
           <Rect name={BACKGROUND_NAME} width={STAGE_WIDTH} height={STAGE_HEIGHT} fill="#1c1c1c" stroke="#555555" strokeWidth={2} />
@@ -163,7 +264,11 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
               onMouseDown={() => onSelect(element.id)}
               onTap={() => onSelect(element.id)}
               onDragStart={() => onSelect(element.id)}
-              onDragEnd={e => onMove(element.id, e.target.x(), e.target.y())}
+              onDragEnd={e => {
+                // L'evento risale fino allo Stage: qui interessa solo la forma
+                e.cancelBubble = true;
+                onMove(element.id, e.target.x(), e.target.y());
+              }}
               onTransformEnd={e => handleTransformEnd(element, e)}
             >
               <ShapeBody element={element} />
