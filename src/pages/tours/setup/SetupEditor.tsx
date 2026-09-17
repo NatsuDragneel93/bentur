@@ -1,14 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faArrowLeft,
+  faCircleQuestion,
   faDownload,
   faExpand,
   faFloppyDisk,
   faMagnifyingGlassMinus,
   faMagnifyingGlassPlus,
+  faPen,
   faRotateLeft,
   faRotateRight,
 } from '@fortawesome/free-solid-svg-icons';
@@ -18,6 +21,7 @@ import ConfirmDialog from '../../../components/ui/ConfirmDialog';
 import Modal from '../../../components/ui/Modal';
 import { useToast } from '../../../hooks/useToast';
 import { useRequiredUser } from '../../../hooks/useAuth';
+import { MOBILE_MEDIA_QUERY, useMediaQuery } from '../../../hooks/useMediaQuery';
 import artistSetupsService, { StageSetup } from '../../../services/artistSetups.service';
 import { generateItemId } from '../../../utils/categoryItems';
 import { commit, createHistory, History, redo, undo } from '../../../utils/history';
@@ -29,6 +33,7 @@ import {
   duplicateElement,
   exportFileName,
   fitScale,
+  hasDefaultLabel,
   MAX_STAGE_ELEMENTS,
   MAX_ZOOM,
   moveElement,
@@ -37,9 +42,8 @@ import {
   reorderElement,
   sameElements,
   ShapeType,
+  Size,
   spawnPosition,
-  STAGE_HEIGHT,
-  STAGE_WIDTH,
   StageElement,
   StageView,
   transformElement,
@@ -50,22 +54,24 @@ import {
 import { artistPath } from '../artist-lists/artistListPaths';
 import { useTourArtist } from '../useTourArtist';
 import { isSetupKey } from './setupPaths';
+import GestureHelp from './GestureHelp';
+import { hasSeenGestureHelp, markGestureHelpSeen } from './gestureHelpStorage';
 import ShapePalette from './ShapePalette';
 import ShapeProperties from './ShapeProperties';
 import StageCanvas, { StageCanvasHandle } from './StageCanvas';
 
 const BUTTON_ZOOM_FACTOR = 1.25;
 
-// Scala del palco adattata allo spazio disponibile (ricalcolata quando la finestra cambia)
+// Spazio disponibile per la tela e scala del palco adattata (ricalcolati quando la finestra cambia)
 const useFitScale = () => {
   // Callback ref: il contenitore compare solo dopo il caricamento
   const [container, ref] = useState<HTMLDivElement | null>(null);
-  const [scale, setScale] = useState(1);
+  const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
 
   useEffect(() => {
     if (!container) return;
 
-    const update = () => setScale(fitScale(container.clientWidth, container.clientHeight));
+    const update = () => setViewport({ width: container.clientWidth, height: container.clientHeight });
     update();
 
     // ResizeObserver manca solo in ambienti di test
@@ -75,7 +81,7 @@ const useFitScale = () => {
     return () => observer.disconnect();
   }, [container]);
 
-  return { ref, scale };
+  return { ref, viewport, scale: fitScale(viewport.width, viewport.height) };
 };
 
 // Avviso del browser chiudendo o ricaricando la pagina con modifiche non salvate
@@ -102,8 +108,9 @@ const SetupEditor: React.FC = () => {
   const { showError, showSuccess } = useToast();
   const user = useRequiredUser();
   const { artist, loading: loadingArtist } = useTourArtist(tourId, artistId);
-  const { ref: canvasAreaRef, scale } = useFitScale();
+  const { ref: canvasAreaRef, viewport, scale } = useFitScale();
   const canvasRef = useRef<StageCanvasHandle>(null);
+  const mobile = useMediaQuery(MOBILE_MEDIA_QUERY);
 
   // Ultima versione salvata (o letta) su Firestore: null finché non è caricata
   const [saved, setSaved] = useState<StageSetup | null>(null);
@@ -112,6 +119,10 @@ const SetupEditor: React.FC = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [storedView, setView] = useState<StageView>(DEFAULT_VIEW);
   const [saving, setSaving] = useState(false);
+  // Su cellulare il pannello proprietà si apre solo su richiesta (Modifica o doppio tocco)
+  const [editing, setEditing] = useState(false);
+  // Aiuto sui gesti: aperto da solo al primo accesso
+  const [helpOpen, setHelpOpen] = useState(() => !hasSeenGestureHelp());
 
   // Dialoghi
   const [conflict, setConflict] = useState<StageSetup | null>(null);
@@ -120,11 +131,12 @@ const SetupEditor: React.FC = () => {
 
   const elements = history.present;
   // La vista resta valida anche quando la scala cambia (es. rotazione del telefono)
-  const view = clampView(storedView, scale);
+  const view = clampView(storedView, scale, viewport);
   const selectedIndex = elements.findIndex(element => element.id === selectedId);
   const selected = selectedIndex === -1 ? null : elements[selectedIndex];
   const dirty = saved !== null && !sameElements(elements, saved.elements);
   const validSetupKey = isSetupKey(setupKey) ? setupKey : null;
+  const showPropertiesSheet = mobile && editing && selected !== null;
 
   useUnsavedChangesWarning(dirty);
 
@@ -169,13 +181,29 @@ const SetupEditor: React.FC = () => {
     setHistory(current => commit(current, change(current.present), mergeKey));
   }, []);
 
+  // Selezionando nel vuoto (o un'altra forma senza pannello aperto) il pannello si chiude
+  const selectShape = (id: string | null) => {
+    setSelectedId(id);
+    if (!id) setEditing(false);
+  };
+
+  const editShape = (id: string) => {
+    setSelectedId(id);
+    setEditing(true);
+  };
+
+  const closeHelp = () => {
+    setHelpOpen(false);
+    markGestureHelpSeen();
+  };
+
   const addShape = (type: ShapeType, position?: Point) => {
     if (elements.length >= MAX_STAGE_ELEMENTS) {
       showError(t('setupEditor.tooManyShapes', { max: MAX_STAGE_ELEMENTS }));
       return;
     }
-    const label = type === 'text' ? t('setupEditor.shapes.text') : '';
-    const element = createElement(type, generateItemId(), position ?? spawnPosition(elements.length, visibleCenter(view, scale)), label);
+    const label = hasDefaultLabel(type) ? t(`setupEditor.shapes.${type}`) : '';
+    const element = createElement(type, generateItemId(), position ?? spawnPosition(elements.length, visibleCenter(view, scale, viewport)), label);
     applyChange(current => [...current, element]);
     setSelectedId(element.id);
   };
@@ -184,6 +212,7 @@ const SetupEditor: React.FC = () => {
     if (!selectedId) return;
     applyChange(current => removeElement(current, selectedId));
     setSelectedId(null);
+    setEditing(false);
   }, [selectedId, applyChange]);
 
   const duplicateSelected = () => {
@@ -261,7 +290,7 @@ const SetupEditor: React.FC = () => {
   };
 
   const zoomFromCenter = (factor: number) =>
-    setView(zoomAt(view, scale, { x: STAGE_WIDTH * scale / 2, y: STAGE_HEIGHT * scale / 2 }, factor));
+    setView(zoomAt(view, scale, viewport, { x: viewport.width / 2, y: viewport.height / 2 }, factor));
 
   if (!tourId || !artistId) {
     return <Navigate to="/tours" replace />;
@@ -272,6 +301,26 @@ const SetupEditor: React.FC = () => {
   }
 
   const goBack = () => navigate(artistPath(tourId, artistId));
+
+  const propertiesPanel = (
+    <ShapeProperties
+      element={selected}
+      variant={mobile ? 'sheet' : 'side'}
+      canBringForward={selectedIndex !== -1 && selectedIndex < elements.length - 1}
+      canSendBackward={selectedIndex > 0}
+      onChange={(field, value) => {
+        if (!selectedId) return;
+        // Lettere consecutive nello stesso campo = un solo passo da annullare
+        applyChange(current => updateElement(current, selectedId, { [field]: value }), `${field}:${selectedId}`);
+      }}
+      onDuplicate={duplicateSelected}
+      onBringForward={() => selectedId && applyChange(current => reorderElement(current, selectedId, 'forward'))}
+      onSendBackward={() => selectedId && applyChange(current => reorderElement(current, selectedId, 'backward'))}
+      onDelete={deleteSelected}
+      // PC: chiude deselezionando; cellulare: chiude il pannello lasciando la forma selezionata
+      onClose={() => (mobile ? setEditing(false) : selectShape(null))}
+    />
+  );
   const loading = loadingArtist || (artist !== null && loadingSetup);
 
   return (
@@ -292,9 +341,12 @@ const SetupEditor: React.FC = () => {
 
       {!loading && artist && saved && (
         <div className="se-body">
-          <ShapePalette onAdd={type => addShape(type)} />
+          {!mobile && <ShapePalette onAdd={type => addShape(type)} />}
 
           <div className="se-workspace">
+            {/* In sovrimpressione: non toglie spazio al palco */}
+            {helpOpen && <GestureHelp mobile={mobile} onClose={closeHelp} />}
+
             <div className="se-toolbar">
               <div className="se-toolbar-group">
                 <button
@@ -362,7 +414,23 @@ const SetupEditor: React.FC = () => {
                 >
                   <FontAwesomeIcon icon={faDownload} />
                 </button>
+                <button
+                  type="button"
+                  className="se-icon-button"
+                  onClick={() => (helpOpen ? closeHelp() : setHelpOpen(true))}
+                  aria-pressed={helpOpen}
+                  title={t('setupEditor.toolbar.help')}
+                  aria-label={t('setupEditor.toolbar.help')}
+                >
+                  <FontAwesomeIcon icon={faCircleQuestion} />
+                </button>
               </div>
+
+              {mobile && selected && !editing && (
+                <button type="button" className="se-edit" onClick={() => setEditing(true)}>
+                  <FontAwesomeIcon icon={faPen} /> {t('setupEditor.toolbar.edit')}
+                </button>
+              )}
 
               <span className={`se-status ${dirty ? 'se-status--dirty' : ''}`} role="status">
                 {t(saving ? 'setupEditor.toolbar.saving' : dirty ? 'setupEditor.toolbar.unsaved' : 'setupEditor.toolbar.saved')}
@@ -379,10 +447,12 @@ const SetupEditor: React.FC = () => {
                 elements={elements}
                 selectedId={selectedId}
                 baseScale={scale}
+                viewport={viewport}
                 view={view}
                 ariaLabel={t('setupEditor.canvasLabel')}
                 onViewChange={setView}
-                onSelect={setSelectedId}
+                onSelect={selectShape}
+                onEdit={editShape}
                 onMove={(id, x, y) => applyChange(current => moveElement(current, id, x, y))}
                 onTransform={(id, result) => applyChange(current => transformElement(current, id, result))}
                 onDropShape={addShape}
@@ -390,22 +460,24 @@ const SetupEditor: React.FC = () => {
             </div>
           </div>
 
-          <ShapeProperties
-            element={selected}
-            canBringForward={selectedIndex !== -1 && selectedIndex < elements.length - 1}
-            canSendBackward={selectedIndex > 0}
-            onChange={(field, value) => {
-              if (!selectedId) return;
-              // Lettere consecutive nello stesso campo = un solo passo da annullare
-              applyChange(current => updateElement(current, selectedId, { [field]: value }), `${field}:${selectedId}`);
-            }}
-            onDuplicate={duplicateSelected}
-            onBringForward={() => selectedId && applyChange(current => reorderElement(current, selectedId, 'forward'))}
-            onSendBackward={() => selectedId && applyChange(current => reorderElement(current, selectedId, 'backward'))}
-            onDelete={deleteSelected}
-            onClose={() => setSelectedId(null)}
-          />
+          {mobile ? <ShapePalette onAdd={type => addShape(type)} /> : propertiesPanel}
         </div>
+      )}
+
+      {/* Cellulare: nome e colori in primo piano sopra il palco, agganciati alla pagina (nessun contenitore li taglia) */}
+      {showPropertiesSheet && createPortal(
+        <div
+          className="se-sheet-backdrop"
+          onClick={e => {
+            // Toccando fuori dal pannello si chiude, come con "Fatto"
+            if (e.target === e.currentTarget) setEditing(false);
+          }}
+        >
+          <div className="se-sheet" role="dialog" aria-modal="true" aria-label={t('setupEditor.properties.title')}>
+            {propertiesPanel}
+          </div>
+        </div>,
+        document.body
       )}
 
       <Modal

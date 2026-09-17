@@ -20,13 +20,20 @@ $se-red: #dc3545;
   }
 }
 
+// Tre colonne uguali ai lati: il titolo resta centrato rispetto a tutta la pagina
 .se-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 16px;
   margin-bottom: 12px;
 
+  .se-back {
+    justify-self: start;
+  }
+
   @media (max-width: 768px) {
+    display: flex;
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
@@ -34,7 +41,6 @@ $se-red: #dc3545;
 }
 
 .se-heading {
-  flex: 1;
   text-align: center;
 
   h1 {
@@ -72,9 +78,9 @@ $se-red: #dc3545;
   min-height: 0;
   gap: 12px;
 
-  // Su cellulare: palco e strumenti sopra, forme sotto; le proprietà si aprono dal basso
+  // Su cellulare: palco e strumenti sopra; sotto, la palette oppure il pannello proprietà
   @media (max-width: 768px) {
-    flex-direction: column-reverse;
+    flex-direction: column;
     padding-bottom: 8px;
   }
 }
@@ -122,6 +128,7 @@ $se-red: #dc3545;
 // --- Area di lavoro ---
 
 .se-workspace {
+  position: relative;
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -205,13 +212,15 @@ $se-red: #dc3545;
   }
 }
 
+// La tela riempie tutta l'area fino alla palette e al pannello
 .se-canvas-area {
-  display: flex;
+  position: relative;
   flex: 1;
-  align-items: center;
-  justify-content: center;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
+  border-radius: 4px;
+  background-color: #1c1c1c;
 
   @media (max-width: 768px) {
     flex: none;
@@ -222,6 +231,9 @@ $se-red: #dc3545;
 }
 
 .se-canvas {
+  // Fuori dal flusso: la tela non influenza le dimensioni dell'area che la contiene
+  position: absolute;
+  inset: 0;
   line-height: 0;
   // I gesti sul palco (trascinamento, pizzico) non devono scorrere o ingrandire la pagina
   touch-action: none;
@@ -248,22 +260,37 @@ $se-red: #dc3545;
     text-align: center;
   }
 
-  // Su cellulare: pannello a scomparsa dal basso, solo con una forma selezionata
-  @media (max-width: 768px) {
-    position: fixed;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 900;
+  // Su cellulare: dentro il pannello in primo piano, altezza del contenuto
+  &--sheet {
     width: auto;
-    max-height: 55vh;
-    border-radius: 14px 14px 0 0;
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.6);
-
-    &--empty {
-      display: none;
-    }
+    overflow: visible;
+    border: none;
+    border-radius: 0;
+    background: transparent;
   }
+}
+
+// Cellulare: pannello proprietà in primo piano, ancorato in basso sopra il palco
+.se-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  background-color: rgba(0, 0, 0, 0.35);
+}
+
+.se-sheet {
+  width: 100%;
+  // Di norma entra tutto; lo scorrimento resta solo come ripiego su schermi molto bassi
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  border-top: 2px solid #4a90d9;
+  border-radius: 14px 14px 0 0;
+  background-color: #151515;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.6);
+  color: white;
 }
 
 .se-properties-header {
@@ -367,6 +394,63 @@ $se-red: #dc3545;
   &:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+  }
+}
+
+.se-edit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 1rem;
+  border: none;
+  border-radius: 6px;
+  background-color: #4a90d9;
+  color: white;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+// --- Aiuto sui gesti ---
+
+// Riquadro sovrapposto all'area di lavoro, sotto la barra degli strumenti
+.se-help {
+  position: absolute;
+  top: 52px;
+  right: 8px;
+  z-index: 10;
+  max-width: 420px;
+  padding: 10px 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  border: 1px solid #4a90d9;
+  border-radius: 8px;
+  background-color: #10202f;
+
+  ul {
+    margin: 6px 0 0;
+    padding-left: 18px;
+    line-height: 1.5;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .se-help {
+    left: 0;
+    right: 0;
+    max-width: none;
+  }
+}
+
+.se-help-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  h2 {
+    margin: 0;
+    font-size: 1rem;
   }
 }
 

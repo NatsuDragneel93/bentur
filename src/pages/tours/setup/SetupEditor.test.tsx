@@ -1,5 +1,5 @@
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Timestamp } from 'firebase/firestore';
@@ -8,6 +8,7 @@ import { renderWithAuth } from '../../../test/renderWithAuth';
 import tourArtistsService from '../../../services/tourArtists.service';
 import artistSetupsService, { StageSetup } from '../../../services/artistSetups.service';
 import { createElement } from '../../../utils/stagePlot';
+import { GESTURE_HELP_STORAGE_KEY } from './gestureHelpStorage';
 
 vi.mock('../../../services/tourArtists.service', () => ({
   default: { getTourArtistById: vi.fn() },
@@ -43,7 +44,7 @@ const setup = (elements: StageSetup['elements'], millis: number | null = 1000): 
   updatedBy: millis === null ? null : { uid: 'user-1', name: 'Mario Rossi' },
 });
 
-const drums = createElement('rect', 'drums', { x: 500, y: 300 }, 'Batteria');
+const drums = createElement('rect', 'drums', { x: 500, y: 300 }, 'Kit principale');
 const cymbal = createElement('circle', 'cymbal', { x: 400, y: 250 }, 'Piatto');
 
 const renderEditor = (setupKey = 'a') =>
@@ -57,6 +58,7 @@ const shapes = () => screen.queryAllByTestId('stage-element');
 
 describe('SetupEditor', () => {
   beforeEach(() => {
+    localStorage.clear();
     vi.mocked(tourArtistsService).getTourArtistById.mockResolvedValue({
       id: 'a1', tourId: 't1', name: 'Anna', role: 'Voce', createdAt: new Date(), updatedAt: new Date(),
     });
@@ -66,7 +68,7 @@ describe('SetupEditor', () => {
   it('carica il setup salvato dell\'artista', async () => {
     renderEditor('b');
 
-    expect(await screen.findByText('Batteria')).toBeInTheDocument();
+    expect(await screen.findByText('Kit principale')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Setup B' })).toBeInTheDocument();
     expect(mockedSetups.getSetup).toHaveBeenCalledWith('t1', 'a1', 'b');
     expect(screen.getByText('Tutto salvato')).toBeInTheDocument();
@@ -133,7 +135,7 @@ describe('SetupEditor', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Duplica' }));
     expect(shapes()).toHaveLength(3);
-    expect(screen.getAllByText('Batteria')).toHaveLength(2);
+    expect(screen.getAllByText('Kit principale')).toHaveLength(2);
 
     await userEvent.click(screen.getByRole('button', { name: 'Elimina' }));
     expect(shapes()).toHaveLength(2);
@@ -181,7 +183,7 @@ describe('SetupEditor', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: 'Copia Setup A' }));
 
-    expect(screen.getByText('Batteria')).toBeInTheDocument();
+    expect(screen.getByText('Kit principale')).toBeInTheDocument();
     expect(screen.getByText('Piatto')).toBeInTheDocument();
     // Le forme copiate hanno id nuovi e vanno salvate
     expect(shapes().map(s => s.dataset.id)).not.toContain('drums');
@@ -209,7 +211,7 @@ describe('SetupEditor', () => {
 
   it('senza modifiche torna subito all\'artista', async () => {
     renderEditor();
-    await screen.findByText('Batteria');
+    await screen.findByText('Kit principale');
 
     await userEvent.click(screen.getByRole('button', { name: /Torna all'artista/ }));
 
@@ -228,5 +230,95 @@ describe('SetupEditor', () => {
 
     expect(await screen.findByText('Artista non trovato')).toBeInTheDocument();
     expect(mockedSetups.getSetup).not.toHaveBeenCalled();
+  });
+
+  describe('aiuto sui gesti', () => {
+    it('si apre al primo accesso e, una volta chiuso, non si riapre da solo', async () => {
+      const { unmount } = renderEditor();
+
+      expect(await screen.findByRole('region', { name: 'Come si usa' })).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: "Chiudi l'aiuto" }));
+      expect(screen.queryByRole('region', { name: 'Come si usa' })).not.toBeInTheDocument();
+      expect(localStorage.getItem(GESTURE_HELP_STORAGE_KEY)).toBe('1');
+
+      unmount();
+      renderEditor();
+      await screen.findByText('Kit principale');
+      expect(screen.queryByRole('region', { name: 'Come si usa' })).not.toBeInTheDocument();
+    });
+
+    it('si riapre con il pulsante "?"', async () => {
+      localStorage.setItem(GESTURE_HELP_STORAGE_KEY, '1');
+      renderEditor();
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Come si usa' }));
+
+      expect(screen.getByRole('region', { name: 'Come si usa' })).toBeInTheDocument();
+      expect(screen.getByText('Trascina una forma per spostarla')).toBeInTheDocument();
+    });
+  });
+
+  describe('su cellulare', () => {
+    beforeEach(() => {
+      localStorage.setItem(GESTURE_HELP_STORAGE_KEY, '1');
+      vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
+        matches: query === '(max-width: 768px)',
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })));
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('selezionare o aggiungere una forma non apre il pannello: si apre con "Modifica"', async () => {
+      renderEditor();
+
+      await userEvent.click((await screen.findAllByTestId('stage-element'))[0]);
+      expect(screen.queryByLabelText('Nome')).not.toBeInTheDocument();
+      expect(screen.getByRole('toolbar', { name: 'Forme' })).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Aggiungi Cerchio' }));
+      expect(screen.queryByLabelText('Nome')).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Modifica' }));
+
+      // Il pannello si apre in primo piano sopra il palco
+      const sheet = screen.getByRole('dialog', { name: 'Proprietà forma' });
+      expect(within(sheet).getByLabelText('Nome')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Modifica' })).not.toBeInTheDocument();
+    });
+
+    it('"Fatto" chiude il pannello e lascia la forma selezionata', async () => {
+      renderEditor();
+      await userEvent.click((await screen.findAllByTestId('stage-element'))[0]);
+      await userEvent.click(screen.getByRole('button', { name: 'Modifica' }));
+
+      await userEvent.click(screen.getByRole('button', { name: 'Fatto' }));
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Modifica' })).toBeInTheDocument();
+    });
+
+    it('toccando fuori dal pannello lo chiude e le modifiche restano', async () => {
+      renderEditor();
+      await userEvent.click((await screen.findAllByTestId('stage-element'))[0]);
+      await userEvent.click(screen.getByRole('button', { name: 'Modifica' }));
+      await userEvent.clear(screen.getByLabelText('Nome'));
+      await userEvent.type(screen.getByLabelText('Nome'), 'Drum kit');
+
+      await userEvent.click(screen.getByRole('dialog').parentElement!);
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.getByText('Drum kit')).toBeInTheDocument();
+    });
+
+    it('mostra i suggerimenti per il touch', async () => {
+      localStorage.clear();
+      renderEditor();
+
+      expect(await screen.findByText('Con due dita ingrandisci e sposti il palco')).toBeInTheDocument();
+    });
   });
 });

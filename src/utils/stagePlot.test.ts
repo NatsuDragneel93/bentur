@@ -7,21 +7,23 @@ import {
   duplicateElement,
   exportFileName,
   fitScale,
-  MAX_ZOOM,
-  reorderElement,
-  sameElements,
-  visibleCenter,
-  zoomAt,
+  hasDefaultLabel,
   isShapeType,
+  keepsRatio,
+  MAX_ZOOM,
   MIN_ELEMENT_SIZE,
   moveElement,
   normalizeElements,
   removeElement,
+  reorderElement,
+  sameElements,
   spawnPosition,
   STAGE_HEIGHT,
   STAGE_WIDTH,
   transformElement,
   updateElement,
+  visibleCenter,
+  zoomAt,
 } from './stagePlot';
 
 const noTransform = { rotation: 0, scaleX: 1, scaleY: 1 };
@@ -36,6 +38,13 @@ describe('stagePlot', () => {
   it('isShapeType riconosce solo i tipi di forma validi', () => {
     expect(isShapeType('triangle')).toBe(true);
     expect(isShapeType('hexagon')).toBe(false);
+  });
+
+  it('solo cerchi e quadrati mantengono le proporzioni; solo il testo ha un nome predefinito', () => {
+    expect(keepsRatio('circle')).toBe(true);
+    expect(keepsRatio('rect')).toBe(false);
+    expect(hasDefaultLabel('text')).toBe(true);
+    expect(hasDefaultLabel('circle')).toBe(false);
   });
 
   it('spawnPosition sposta le nuove forme per non sovrapporle', () => {
@@ -139,16 +148,27 @@ describe('stagePlot', () => {
 
   it('zoomAt ingrandisce mantenendo fermo il punto indicato', () => {
     // Tela 500x300 (baseScale 0.5): il punto (250, 150) è il centro del palco
-    const view = zoomAt(DEFAULT_VIEW, 0.5, { x: 250, y: 150 }, 2);
+    const viewport = { width: 500, height: 300 };
+    const view = zoomAt(DEFAULT_VIEW, 0.5, viewport, { x: 250, y: 150 }, 2);
 
     expect(view).toEqual({ zoom: 2, x: -250, y: -150 });
-    expect(visibleCenter(view, 0.5)).toEqual({ x: STAGE_WIDTH / 2, y: STAGE_HEIGHT / 2 });
+    expect(visibleCenter(view, 0.5, viewport)).toEqual({ x: STAGE_WIDTH / 2, y: STAGE_HEIGHT / 2 });
   });
 
   it('zoomAt e clampView restano nei limiti di zoom e non mostrano bordi vuoti', () => {
-    expect(zoomAt(DEFAULT_VIEW, 0.5, { x: 0, y: 0 }, 100).zoom).toBe(MAX_ZOOM);
-    expect(zoomAt(DEFAULT_VIEW, 0.5, { x: 0, y: 0 }, 0.1)).toEqual(DEFAULT_VIEW);
-    expect(clampView({ zoom: 2, x: 50, y: -9999 }, 0.5)).toEqual({ zoom: 2, x: 0, y: -300 });
+    const viewport = { width: 500, height: 300 };
+
+    expect(zoomAt(DEFAULT_VIEW, 0.5, viewport, { x: 0, y: 0 }, 100).zoom).toBe(MAX_ZOOM);
+    expect(zoomAt(DEFAULT_VIEW, 0.5, viewport, { x: 0, y: 0 }, 0.1)).toEqual(DEFAULT_VIEW);
+    expect(clampView({ zoom: 2, x: 50, y: -9999 }, 0.5, viewport)).toEqual({ zoom: 2, x: 0, y: -300 });
+  });
+
+  it('clampView centra il palco quando la tela è più grande', () => {
+    // Tela larga 700: il palco (500x300) resta al centro in orizzontale
+    const view = clampView({ zoom: 1, x: -50, y: 10 }, 0.5, { width: 700, height: 300 });
+
+    expect(view).toEqual({ zoom: 1, x: 100, y: 0 });
+    expect(visibleCenter(view, 0.5, { width: 700, height: 300 })).toEqual({ x: STAGE_WIDTH / 2, y: STAGE_HEIGHT / 2 });
   });
 
   it('exportFileName crea un nome file senza accenti né spazi', () => {

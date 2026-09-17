@@ -27,7 +27,9 @@ export interface StageElement {
   labelColor: string;
 }
 
-const DEFAULTS: Record<ShapeType, Pick<StageElement, 'width' | 'height' | 'fill' | 'stroke' | 'labelColor'>> = {
+type ElementDefaults = Pick<StageElement, 'width' | 'height' | 'fill' | 'stroke' | 'labelColor'>;
+
+const DEFAULTS: Record<ShapeType, ElementDefaults> = {
   circle: { width: 80, height: 80, fill: '#f5f5f5', stroke: '#888888', labelColor: '#000000' },
   square: { width: 80, height: 80, fill: '#4a90d9', stroke: '#1f4f80', labelColor: '#ffffff' },
   rect: { width: 160, height: 90, fill: '#4a90d9', stroke: '#1f4f80', labelColor: '#ffffff' },
@@ -38,6 +40,9 @@ const DEFAULTS: Record<ShapeType, Pick<StageElement, 'width' | 'height' | 'fill'
 
 // Forme con proporzioni fisse durante il ridimensionamento
 export const keepsRatio = (type: ShapeType): boolean => type === 'circle' || type === 'square';
+
+// Nome predefinito alla creazione: solo il testo nasce già con una scritta
+export const hasDefaultLabel = (type: ShapeType): boolean => type === 'text';
 
 export const clamp = (value: number, min: number, max: number): number => Math.min(Math.max(value, min), max);
 
@@ -194,8 +199,13 @@ export const fitScale = (availableWidth: number, availableHeight: number): numbe
 };
 
 // --- Zoom e spostamento della vista ---
-// La tela ha sempre le dimensioni del palco adattato (baseScale); dentro, il disegno
-// è ingrandito di `zoom` e spostato di (x, y) pixel.
+// La tela occupa tutto lo spazio disponibile (viewport); dentro, il palco è disegnato
+// con scala baseScale * zoom e spostato di (x, y) pixel.
+
+export interface Size {
+  width: number;
+  height: number;
+}
 
 export interface StageView {
   zoom: number;
@@ -207,33 +217,39 @@ export const MIN_ZOOM = 1;
 export const MAX_ZOOM = 4;
 export const DEFAULT_VIEW: StageView = { zoom: 1, x: 0, y: 0 };
 
-// Il disegno ingrandito deve sempre coprire tutta la tela (niente bordi vuoti)
-export const clampView = (view: StageView, baseScale: number): StageView => {
+// Su un asse: palco più piccolo della tela = centrato; più grande = nessun bordo vuoto
+const clampAxis = (position: number, content: number, viewport: number): number =>
+  content <= viewport ? (viewport - content) / 2 : clamp(position, viewport - content, 0);
+
+export const clampView = (view: StageView, baseScale: number, viewport: Size): StageView => {
   const zoom = clamp(view.zoom, MIN_ZOOM, MAX_ZOOM);
-  const viewportWidth = STAGE_WIDTH * baseScale;
-  const viewportHeight = STAGE_HEIGHT * baseScale;
+  const scale = baseScale * zoom;
   return {
     zoom,
-    x: clamp(view.x, viewportWidth - viewportWidth * zoom, 0),
-    y: clamp(view.y, viewportHeight - viewportHeight * zoom, 0),
+    x: clampAxis(view.x, STAGE_WIDTH * scale, viewport.width),
+    y: clampAxis(view.y, STAGE_HEIGHT * scale, viewport.height),
   };
 };
 
 // Zoom mantenendo fermo il punto indicato (in pixel della tela), es. il puntatore o il centro del pizzico
-export const zoomAt = (view: StageView, baseScale: number, point: Point, factor: number): StageView => {
+export const zoomAt = (view: StageView, baseScale: number, viewport: Size, point: Point, factor: number): StageView => {
   const oldScale = baseScale * view.zoom;
   const zoom = clamp(view.zoom * factor, MIN_ZOOM, MAX_ZOOM);
   const logicalX = (point.x - view.x) / oldScale;
   const logicalY = (point.y - view.y) / oldScale;
-  return clampView({ zoom, x: point.x - logicalX * baseScale * zoom, y: point.y - logicalY * baseScale * zoom }, baseScale);
+  return clampView(
+    { zoom, x: point.x - logicalX * baseScale * zoom, y: point.y - logicalY * baseScale * zoom },
+    baseScale,
+    viewport
+  );
 };
 
-// Centro della parte di palco visibile, in unità logiche
-export const visibleCenter = (view: StageView, baseScale: number): Point => {
+// Centro della parte di tela visibile, in unità logiche del palco
+export const visibleCenter = (view: StageView, baseScale: number, viewport: Size): Point => {
   const scale = baseScale * view.zoom;
   return {
-    x: (STAGE_WIDTH * baseScale / 2 - view.x) / scale,
-    y: (STAGE_HEIGHT * baseScale / 2 - view.y) / scale,
+    x: (viewport.width / 2 - view.x) / scale,
+    y: (viewport.height / 2 - view.y) / scale,
   };
 };
 

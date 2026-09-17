@@ -1,7 +1,7 @@
 import React, { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowDown, faArrowUp, faClone, faTrash, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faArrowDown, faArrowUp, faCheck, faClone, faTrash, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { COLOR_PRESETS, MAX_LABEL_LENGTH, StageElement } from '../../../utils/stagePlot';
 
 type EditableField = 'label' | 'fill' | 'labelColor';
@@ -47,6 +47,8 @@ const ColorField: React.FC<ColorFieldProps> = ({ label, value, onChange }) => {
 
 interface ShapePropertiesProps {
   element: StageElement | null;
+  // side = colonna a destra (PC); sheet = pannello in primo piano sopra il palco (cellulare)
+  variant: 'side' | 'sheet';
   canBringForward: boolean;
   canSendBackward: boolean;
   onChange: (field: EditableField, value: string) => void;
@@ -57,9 +59,10 @@ interface ShapePropertiesProps {
   onClose: () => void;
 }
 
-// Pannello della forma selezionata: a destra su PC, pannello a scomparsa dal basso su cellulare
+// Pannello della forma selezionata: a destra su PC, in primo piano sopra il palco su cellulare
 const ShapeProperties: React.FC<ShapePropertiesProps> = ({
   element,
+  variant,
   canBringForward,
   canSendBackward,
   onChange,
@@ -83,12 +86,18 @@ const ShapeProperties: React.FC<ShapePropertiesProps> = ({
   const isText = element.type === 'text';
 
   return (
-    <aside className="se-properties" aria-label={t('setupEditor.properties.title')}>
+    <aside className={`se-properties se-properties--${variant}`} aria-label={t('setupEditor.properties.title')}>
       <div className="se-properties-header">
         <h2>{t(`setupEditor.shapes.${element.type}`)}</h2>
-        <button type="button" className="se-icon-button" onClick={onClose} aria-label={t('setupEditor.properties.close')}>
-          <FontAwesomeIcon icon={faXmark} />
-        </button>
+        {variant === 'sheet' ? (
+          <button type="button" className="se-save" onClick={onClose}>
+            <FontAwesomeIcon icon={faCheck} /> {t('setupEditor.properties.done')}
+          </button>
+        ) : (
+          <button type="button" className="se-icon-button" onClick={onClose} aria-label={t('setupEditor.properties.close')}>
+            <FontAwesomeIcon icon={faXmark} />
+          </button>
+        )}
       </div>
 
       <div className="se-field">

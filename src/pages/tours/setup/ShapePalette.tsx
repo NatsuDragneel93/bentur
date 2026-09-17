@@ -22,7 +22,7 @@ interface ShapePaletteProps {
 }
 
 /**
- * Elenco delle forme. Clic/tocco = aggiunge la forma al centro del palco;
+ * Elenco delle forme. Clic/tocco = aggiunge la forma al centro della vista;
  * con il mouse si può anche trascinare la forma nel punto voluto.
  */
 const ShapePalette: React.FC<ShapePaletteProps> = ({ onAdd }) => {

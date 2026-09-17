@@ -8,6 +8,7 @@ import {
   MIN_ELEMENT_SIZE,
   Point,
   ShapeType,
+  Size,
   STAGE_HEIGHT,
   STAGE_WIDTH,
   StageElement,
@@ -52,15 +53,16 @@ const ShapeLabel: React.FC<{ element: StageElement }> = ({ element }) => {
   const { type, width, height, label, labelColor } = element;
   if (!label) return null;
 
-  // Sulle linee il nome sta sopra, nelle altre forme al centro
+  // Sulle linee il nome sta sopra (può essere più largo della linea), nelle altre forme al centro
   const isLine = type === 'line';
+  const labelWidth = isLine ? Math.max(width, 140) : width;
   return (
     <Text
       text={label}
-      x={-width / 2}
+      x={-labelWidth / 2}
       y={isLine ? -height / 2 - 24 : -height / 2}
-      width={width}
-      height={isLine ? 20 : height}
+      width={labelWidth}
+      height={isLine ? 22 : height}
       align="center"
       verticalAlign="middle"
       fontSize={type === 'text' ? 22 : 16}
@@ -83,10 +85,14 @@ interface StageCanvasProps {
   selectedId: string | null;
   // Rapporto tra pixel sullo schermo e unità logiche del palco, senza zoom
   baseScale: number;
+  // Dimensioni della tela: tutto lo spazio disponibile, il palco vi è centrato
+  viewport: Size;
   view: StageView;
   ariaLabel: string;
   onViewChange: (view: StageView) => void;
   onSelect: (id: string | null) => void;
+  // Doppio clic / doppio tocco su una forma: apre nome e colori
+  onEdit: (id: string) => void;
   onMove: (id: string, x: number, y: number) => void;
   onTransform: (id: string, result: TransformResult) => void;
   onDropShape: (type: ShapeType, position: Point) => void;
@@ -100,10 +106,12 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
   elements,
   selectedId,
   baseScale,
+  viewport,
   view,
   ariaLabel,
   onViewChange,
   onSelect,
+  onEdit,
   onMove,
   onTransform,
   onDropShape,
@@ -182,7 +190,7 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
 
     e.evt.preventDefault();
     const factor = e.evt.deltaY < 0 ? WHEEL_ZOOM_FACTOR : 1 / WHEEL_ZOOM_FACTOR;
-    onViewChange(zoomAt(view, baseScale, pointer, factor));
+    onViewChange(zoomAt(view, baseScale, viewport, pointer, factor));
   };
 
   // Due dita: zoom (pizzico) e spostamento della vista insieme
@@ -208,10 +216,11 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
     pinchRef.current = { center, distance: currentDistance };
     if (!previous || previous.distance === 0) return;
 
-    const zoomed = zoomAt(view, baseScale, center, currentDistance / previous.distance);
+    const zoomed = zoomAt(view, baseScale, viewport, center, currentDistance / previous.distance);
     onViewChange(clampView(
       { ...zoomed, x: zoomed.x + center.x - previous.center.x, y: zoomed.y + center.y - previous.center.y },
-      baseScale
+      baseScale,
+      viewport
     ));
   };
 
@@ -228,8 +237,8 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
     >
       <Stage
         ref={stageRef}
-        width={STAGE_WIDTH * baseScale}
-        height={STAGE_HEIGHT * baseScale}
+        width={viewport.width}
+        height={viewport.height}
         scaleX={scale}
         scaleY={scale}
         x={view.x}
@@ -237,7 +246,7 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
         // Con lo zoom attivo si sposta la vista trascinando lo sfondo
         draggable={view.zoom > 1}
         dragBoundFunc={pos => {
-          const bounded = clampView({ zoom: view.zoom, x: pos.x, y: pos.y }, baseScale);
+          const bounded = clampView({ zoom: view.zoom, x: pos.x, y: pos.y }, baseScale, viewport);
           return { x: bounded.x, y: bounded.y };
         }}
         onDragEnd={e => {
@@ -250,7 +259,17 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
         onTouchEnd={() => { pinchRef.current = null; }}
       >
         <Layer>
-          <Rect name={BACKGROUND_NAME} width={STAGE_WIDTH} height={STAGE_HEIGHT} fill="#1c1c1c" stroke="#555555" strokeWidth={2} />
+          {/* Palco: area salvata ed esportata; intorno la tela continua con lo stesso sfondo */}
+          <Rect
+            name={BACKGROUND_NAME}
+            width={STAGE_WIDTH}
+            height={STAGE_HEIGHT}
+            fill="#222222"
+            stroke="#555555"
+            strokeWidth={2}
+            strokeScaleEnabled={false}
+            dash={[10, 6]}
+          />
 
           {elements.map(element => (
             <Group
@@ -263,10 +282,17 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
               draggable
               onMouseDown={() => onSelect(element.id)}
               onTap={() => onSelect(element.id)}
-              onDragStart={() => onSelect(element.id)}
+              onDblClick={() => onEdit(element.id)}
+              onDblTap={() => onEdit(element.id)}
+              onDragStart={e => {
+                // Forma semitrasparente durante il trascinamento: si vede che si sta muovendo
+                e.target.opacity(0.6);
+                onSelect(element.id);
+              }}
               onDragEnd={e => {
                 // L'evento risale fino allo Stage: qui interessa solo la forma
                 e.cancelBubble = true;
+                e.target.opacity(1);
                 onMove(element.id, e.target.x(), e.target.y());
               }}
               onTransformEnd={e => handleTransformEnd(element, e)}
