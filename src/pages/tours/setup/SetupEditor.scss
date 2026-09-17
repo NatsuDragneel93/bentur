@@ -117,7 +117,7 @@ $se-red: #dc3545;
   touch-action: manipulation;
 
   svg {
-    fill: #4a90d9;
+    fill: #339af0;
   }
 
   &:hover {
@@ -219,8 +219,8 @@ $se-red: #dc3545;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  border-radius: 4px;
-  background-color: #1c1c1c;
+  border-radius: 8px;
+  background-color: #18181b;
 
   @media (max-width: 768px) {
     flex: none;

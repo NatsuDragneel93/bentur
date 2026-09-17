@@ -31,6 +31,8 @@ vi.mock('react-konva', () => {
     Rect: ({ fill, name }: { fill?: string; name?: string }) => (name ? null : <i data-testid="shape-fill" data-fill={fill} />),
     Ellipse: ({ fill }: { fill?: string }) => <i data-testid="shape-fill" data-fill={fill} />,
     Line: () => null,
+    Star: ({ fill }: { fill?: string }) => <i data-testid="shape-fill" data-fill={fill} />,
+    Shape: () => null,
     Text: ({ text }: { text: string }) => <span>{text}</span>,
     Transformer: () => null,
   };
@@ -87,17 +89,17 @@ describe('SetupEditor', () => {
 
     // La nuova forma è selezionata: il pannello proprietà è aperto
     await userEvent.type(screen.getByLabelText('Nome'), 'Piatto');
-    await userEvent.click(screen.getByRole('button', { name: 'Colore forma: #e74c3c' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Colore forma: #ff6b6b' }));
 
     const circle = shapes()[1];
     expect(within(circle).getByText('Piatto')).toBeInTheDocument();
-    expect(within(circle).getByTestId('shape-fill')).toHaveAttribute('data-fill', '#e74c3c');
+    expect(within(circle).getByTestId('shape-fill')).toHaveAttribute('data-fill', '#ff6b6b');
 
     await userEvent.click(screen.getByRole('button', { name: /Salva/ }));
 
     expect(mockedSetups.saveSetup).toHaveBeenCalledWith(
       't1', 'a1', 'a',
-      [drums, expect.objectContaining({ type: 'circle', label: 'Piatto', fill: '#e74c3c' })],
+      [drums, expect.objectContaining({ type: 'circle', label: 'Piatto', fill: '#ff6b6b' })],
       expect.objectContaining({ user: { uid: 'user-1', name: 'Mario Rossi' }, force: false })
     );
     expect(mockedSetups.saveSetup.mock.calls[0][4].baseUpdatedAt?.toMillis()).toBe(1000);
@@ -140,6 +142,16 @@ describe('SetupEditor', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Elimina' }));
     expect(shapes()).toHaveLength(2);
     expect(screen.getByText('Seleziona una forma per cambiarne nome e colori')).toBeInTheDocument();
+  });
+
+  it('aggiunge una stella', async () => {
+    renderEditor();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Aggiungi Stella' }));
+
+    const star = shapes()[1];
+    expect(within(star).getByTestId('shape-fill')).toHaveAttribute('data-fill', '#fcc419');
+    expect(screen.getByRole('heading', { name: 'Stella' })).toBeInTheDocument();
   });
 
   describe('salvataggio in conflitto', () => {

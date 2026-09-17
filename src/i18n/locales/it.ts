@@ -226,6 +226,7 @@ const it = {
       square: 'Quadrato',
       rect: 'Rettangolo',
       triangle: 'Triangolo',
+      star: 'Stella',
       line: 'Linea',
       text: 'Testo',
     },

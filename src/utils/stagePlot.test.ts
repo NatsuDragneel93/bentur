@@ -37,11 +37,13 @@ describe('stagePlot', () => {
 
   it('isShapeType riconosce solo i tipi di forma validi', () => {
     expect(isShapeType('triangle')).toBe(true);
+    expect(isShapeType('star')).toBe(true);
     expect(isShapeType('hexagon')).toBe(false);
   });
 
-  it('solo cerchi e quadrati mantengono le proporzioni; solo il testo ha un nome predefinito', () => {
+  it('cerchi, quadrati e stelle mantengono le proporzioni; solo il testo ha un nome predefinito', () => {
     expect(keepsRatio('circle')).toBe(true);
+    expect(keepsRatio('star')).toBe(true);
     expect(keepsRatio('rect')).toBe(false);
     expect(hasDefaultLabel('text')).toBe(true);
     expect(hasDefaultLabel('circle')).toBe(false);

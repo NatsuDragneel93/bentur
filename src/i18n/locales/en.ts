@@ -227,6 +227,7 @@ const en: typeof it = {
       square: 'Square',
       rect: 'Rectangle',
       triangle: 'Triangle',
+      star: 'Star',
       line: 'Line',
       text: 'Text',
     },

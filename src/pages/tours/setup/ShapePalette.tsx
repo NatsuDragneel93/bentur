@@ -9,9 +9,10 @@ export const SHAPE_DRAG_TYPE = 'application/x-bentur-shape';
 const ShapeIcon: React.FC<{ type: ShapeType }> = ({ type }) => (
   <svg viewBox="0 0 40 40" width="32" height="32" aria-hidden="true">
     {type === 'circle' && <circle cx="20" cy="20" r="14" />}
-    {type === 'square' && <rect x="7" y="7" width="26" height="26" rx="2" />}
-    {type === 'rect' && <rect x="3" y="11" width="34" height="18" rx="2" />}
-    {type === 'triangle' && <polygon points="20,5 36,34 4,34" />}
+    {type === 'square' && <rect x="7" y="7" width="26" height="26" rx="5" />}
+    {type === 'rect' && <rect x="3" y="11" width="34" height="18" rx="4" />}
+    {type === 'triangle' && <polygon points="20,5 36,34 4,34" strokeLinejoin="round" />}
+    {type === 'star' && <polygon points="20,3 25,15 38,15 28,23 32,36 20,28 8,36 12,23 2,15 15,15" />}
     {type === 'line' && <rect x="3" y="18" width="34" height="4" />}
     {type === 'text' && <text x="20" y="28" textAnchor="middle" fontSize="22" fontWeight="bold">T</text>}
   </svg>

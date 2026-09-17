@@ -1,6 +1,6 @@
 import React, { useEffect, useImperativeHandle, useRef } from 'react';
 import Konva from 'konva';
-import { Ellipse, Group, Layer, Line, Rect, Stage, Text, Transformer } from 'react-konva';
+import { Ellipse, Group, Layer, Line, Rect, Shape, Stage, Star, Text, Transformer } from 'react-konva';
 import {
   clampView,
   isShapeType,
@@ -28,21 +28,71 @@ const WHEEL_ZOOM_FACTOR = 1.1;
 const isCoarsePointer = () =>
   typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
 
+// Stile ispirato alla demo "Infinite Canvas" di Konva: angoli arrotondati, ombre morbide, colori pieni
+const BODY_NAME = 'se-body';
+const SHADOW = { shadowColor: 'black', shadowOpacity: 0.45, shadowBlur: 10, shadowOffsetY: 4, shadowForStrokeEnabled: false };
+// Ombra più ampia mentre si trascina: la forma sembra sollevata dal palco
+const DRAG_SHADOW = { shadowBlur: 22, shadowOffsetY: 12 };
+
+const STAGE_COLOR = '#232327';
+const DOT_COLOR = 'rgba(255, 255, 255, 0.13)';
+const DOT_SPACING = 25;
+
+// Sfondo a puntini del palco, disegnato come un'unica figura (migliaia di cerchi sarebbero lenti)
+const DottedGrid: React.FC = () => (
+  <Shape
+    listening={false}
+    perfectDrawEnabled={false}
+    sceneFunc={context => {
+      context.beginPath();
+      for (let x = DOT_SPACING; x < STAGE_WIDTH; x += DOT_SPACING) {
+        for (let y = DOT_SPACING; y < STAGE_HEIGHT; y += DOT_SPACING) {
+          context.moveTo(x + 1.5, y);
+          context.arc(x, y, 1.5, 0, Math.PI * 2);
+        }
+      }
+      context.fillStyle = DOT_COLOR;
+      context.fill();
+    }}
+  />
+);
+
 // Disegno di una forma, centrata nell'origine del gruppo
 const ShapeBody: React.FC<{ element: StageElement }> = ({ element }) => {
-  const { type, width, height, fill, stroke } = element;
-  const common = { fill, stroke, strokeWidth: 2 };
+  const { type, width, height, fill } = element;
+  const common = { name: BODY_NAME, fill, perfectDrawEnabled: false, ...SHADOW };
 
   switch (type) {
     case 'circle':
       return <Ellipse radiusX={width / 2} radiusY={height / 2} {...common} />;
     case 'square':
     case 'rect':
-      return <Rect x={-width / 2} y={-height / 2} width={width} height={height} cornerRadius={4} {...common} />;
+      return (
+        <Rect
+          x={-width / 2}
+          y={-height / 2}
+          width={width}
+          height={height}
+          cornerRadius={Math.min(10, width / 4, height / 4)}
+          {...common}
+        />
+      );
     case 'triangle':
-      return <Line points={[0, -height / 2, width / 2, height / 2, -width / 2, height / 2]} closed {...common} />;
+      // Bordo dello stesso colore con giunzioni arrotondate: punte morbide
+      return (
+        <Line
+          points={[0, -height / 2, width / 2, height / 2, -width / 2, height / 2]}
+          closed
+          stroke={fill}
+          strokeWidth={6}
+          lineJoin="round"
+          {...common}
+        />
+      );
+    case 'star':
+      return <Star numPoints={5} outerRadius={width / 2} innerRadius={width / 4.4} lineJoin="round" {...common} />;
     case 'line':
-      return <Rect x={-width / 2} y={-height / 2} width={width} height={height} fill={fill} />;
+      return <Rect x={-width / 2} y={-height / 2} width={width} height={height} cornerRadius={height / 2} {...common} />;
     case 'text':
       // Area invisibile per poter selezionare e spostare il testo
       return <Rect x={-width / 2} y={-height / 2} width={width} height={height} fill="rgba(0,0,0,0.01)" />;
@@ -264,12 +314,14 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
             name={BACKGROUND_NAME}
             width={STAGE_WIDTH}
             height={STAGE_HEIGHT}
-            fill="#222222"
-            stroke="#555555"
-            strokeWidth={2}
+            fill={STAGE_COLOR}
+            cornerRadius={12}
+            stroke="rgba(255, 255, 255, 0.18)"
+            strokeWidth={1.5}
             strokeScaleEnabled={false}
             dash={[10, 6]}
           />
+          <DottedGrid />
 
           {elements.map(element => (
             <Group
@@ -285,14 +337,19 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
               onDblClick={() => onEdit(element.id)}
               onDblTap={() => onEdit(element.id)}
               onDragStart={e => {
-                // Forma semitrasparente durante il trascinamento: si vede che si sta muovendo
-                e.target.opacity(0.6);
+                // Durante il trascinamento la forma "si solleva": ombra più ampia e leggera trasparenza
+                e.target.opacity(0.9);
+                (e.target as Konva.Group).findOne(`.${BODY_NAME}`)?.setAttrs(DRAG_SHADOW);
                 onSelect(element.id);
               }}
               onDragEnd={e => {
                 // L'evento risale fino allo Stage: qui interessa solo la forma
                 e.cancelBubble = true;
                 e.target.opacity(1);
+                (e.target as Konva.Group).findOne(`.${BODY_NAME}`)?.setAttrs({
+                  shadowBlur: SHADOW.shadowBlur,
+                  shadowOffsetY: SHADOW.shadowOffsetY,
+                });
                 onMove(element.id, e.target.x(), e.target.y());
               }}
               onTransformEnd={e => handleTransformEnd(element, e)}
@@ -314,6 +371,11 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
                   : undefined
             }
             anchorSize={coarse ? 22 : 10}
+            anchorCornerRadius={coarse ? 11 : 5}
+            anchorStroke="#339af0"
+            anchorFill="#ffffff"
+            borderStroke="#339af0"
+            borderStrokeWidth={1.5}
             rotateAnchorOffset={coarse ? 40 : 30}
             flipEnabled={false}
             // Impedisce di schiacciare la forma fino a farla sparire (in pixel sullo schermo)

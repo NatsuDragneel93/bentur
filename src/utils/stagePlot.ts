@@ -1,6 +1,6 @@
 // Logica pura dell'editor Setup (disposizione del palco). Non tocca Konva né Firestore.
 
-export const SHAPE_TYPES = ['circle', 'square', 'rect', 'triangle', 'line', 'text'] as const;
+export const SHAPE_TYPES = ['circle', 'square', 'rect', 'triangle', 'star', 'line', 'text'] as const;
 export type ShapeType = (typeof SHAPE_TYPES)[number];
 
 export const isShapeType = (value: string): value is ShapeType => SHAPE_TYPES.includes(value as ShapeType);
@@ -30,16 +30,18 @@ export interface StageElement {
 type ElementDefaults = Pick<StageElement, 'width' | 'height' | 'fill' | 'stroke' | 'labelColor'>;
 
 const DEFAULTS: Record<ShapeType, ElementDefaults> = {
-  circle: { width: 80, height: 80, fill: '#f5f5f5', stroke: '#888888', labelColor: '#000000' },
-  square: { width: 80, height: 80, fill: '#4a90d9', stroke: '#1f4f80', labelColor: '#ffffff' },
-  rect: { width: 160, height: 90, fill: '#4a90d9', stroke: '#1f4f80', labelColor: '#ffffff' },
-  triangle: { width: 90, height: 80, fill: '#e67e22', stroke: '#9a4f0f', labelColor: '#000000' },
-  line: { width: 200, height: 6, fill: '#ffffff', stroke: '#ffffff', labelColor: '#ffffff' },
+  // Colori pieni e vivaci; stroke non è più disegnato (resta nei dati per compatibilità)
+  circle: { width: 80, height: 80, fill: '#f1f3f5', stroke: 'transparent', labelColor: '#212529' },
+  square: { width: 80, height: 80, fill: '#51cf66', stroke: 'transparent', labelColor: '#212529' },
+  rect: { width: 160, height: 90, fill: '#339af0', stroke: 'transparent', labelColor: '#ffffff' },
+  triangle: { width: 90, height: 80, fill: '#ff922b', stroke: 'transparent', labelColor: '#212529' },
+  star: { width: 90, height: 90, fill: '#fcc419', stroke: 'transparent', labelColor: '#212529' },
+  line: { width: 200, height: 6, fill: '#e9ecef', stroke: 'transparent', labelColor: '#ffffff' },
   text: { width: 160, height: 40, fill: 'transparent', stroke: 'transparent', labelColor: '#ffffff' },
 };
 
 // Forme con proporzioni fisse durante il ridimensionamento
-export const keepsRatio = (type: ShapeType): boolean => type === 'circle' || type === 'square';
+export const keepsRatio = (type: ShapeType): boolean => type === 'circle' || type === 'square' || type === 'star';
 
 // Nome predefinito alla creazione: solo il testo nasce già con una scritta
 export const hasDefaultLabel = (type: ShapeType): boolean => type === 'text';
@@ -51,8 +53,8 @@ export const MAX_LABEL_LENGTH = 60;
 
 // Colori proposti nel pannello proprietà (resta disponibile anche il selettore libero)
 export const COLOR_PRESETS = [
-  '#ffffff', '#9e9e9e', '#000000', '#4a90d9', '#5bc0eb',
-  '#2ecc71', '#f1c40f', '#e67e22', '#e74c3c', '#9b59b6',
+  '#ffffff', '#adb5bd', '#212529', '#339af0', '#22b8cf',
+  '#51cf66', '#fcc419', '#ff922b', '#ff6b6b', '#cc5de8',
 ];
 
 export interface Point {
