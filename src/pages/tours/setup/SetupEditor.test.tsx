@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Timestamp } from 'firebase/firestore';
 import SetupEditor from './SetupEditor';
@@ -25,8 +25,27 @@ vi.mock('react-konva', () => {
   return {
     Stage: passthrough,
     Layer: passthrough,
-    Group: ({ children, id, onMouseDown }: { children?: React.ReactNode; id: string; onMouseDown: () => void }) => (
-      <div data-testid="stage-element" data-id={id} onClick={onMouseDown}>{children}</div>
+    // Konva passa l'evento del browser dentro `evt` ed emette un tocco (onTap) quando il dito si alza
+    Group: ({ children, id, onMouseDown, onTap, onTouchStart, onTouchEnd }: {
+      children?: React.ReactNode;
+      id: string;
+      onMouseDown: (e: { evt: React.MouseEvent }) => void;
+      onTap: (e: { evt: React.TouchEvent }) => void;
+      onTouchStart: () => void;
+      onTouchEnd: () => void;
+    }) => (
+      <div
+        data-testid="stage-element"
+        data-id={id}
+        onClick={e => onMouseDown({ evt: e })}
+        onTouchStart={onTouchStart}
+        onTouchEnd={e => {
+          onTouchEnd();
+          onTap({ evt: e });
+        }}
+      >
+        {children}
+      </div>
     ),
     Rect: ({ fill, name }: { fill?: string; name?: string }) => (name ? null : <i data-testid="shape-fill" data-fill={fill} />),
     Ellipse: ({ fill }: { fill?: string }) => <i data-testid="shape-fill" data-fill={fill} />,
@@ -142,6 +161,101 @@ describe('SetupEditor', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Elimina' }));
     expect(shapes()).toHaveLength(2);
     expect(screen.getByText('Seleziona una forma per cambiarne nome e colori')).toBeInTheDocument();
+  });
+
+  describe('selezione multipla', () => {
+    // Ctrl+clic: userEvent non passa i modificatori al clic, serve l'evento diretto
+    const ctrlClick = (element: HTMLElement) => fireEvent.click(element, { ctrlKey: true });
+    // Più della pressione prolungata di StageCanvas (500 ms)
+    const LONG_PRESS_WAIT = 1000;
+
+    it('con Ctrl+clic seleziona più forme e le elimina insieme', async () => {
+      mockedSetups.getSetup.mockResolvedValue(setup([drums, cymbal]));
+      renderEditor();
+
+      await userEvent.click((await screen.findAllByTestId('stage-element'))[0]);
+      ctrlClick(shapes()[1]);
+
+      // Su PC conteggio e azioni di gruppo stanno nel pannello a destra
+      expect(screen.getByRole('heading', { name: '2 forme selezionate' })).toBeInTheDocument();
+      // Nome e colori restano per la forma singola
+      expect(screen.queryByLabelText('Nome')).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Elimina' }));
+
+      expect(shapes()).toHaveLength(0);
+      expect(screen.getByText('Modifiche non salvate')).toBeInTheDocument();
+    });
+
+    it('duplica tutte le forme selezionate', async () => {
+      mockedSetups.getSetup.mockResolvedValue(setup([drums, cymbal]));
+      renderEditor();
+
+      await userEvent.click((await screen.findAllByTestId('stage-element'))[0]);
+      ctrlClick(shapes()[1]);
+      await userEvent.click(screen.getByRole('button', { name: 'Duplica' }));
+
+      expect(shapes()).toHaveLength(4);
+      expect(screen.getAllByText('Kit principale')).toHaveLength(2);
+      expect(screen.getAllByText('Piatto')).toHaveLength(2);
+      // Restano selezionate le copie
+      expect(screen.getByRole('heading', { name: '2 forme selezionate' })).toBeInTheDocument();
+    });
+
+    it('Ctrl+clic su una forma già selezionata la toglie dalla selezione', async () => {
+      mockedSetups.getSetup.mockResolvedValue(setup([drums, cymbal]));
+      renderEditor();
+
+      await userEvent.click((await screen.findAllByTestId('stage-element'))[0]);
+      ctrlClick(shapes()[1]);
+      ctrlClick(shapes()[1]);
+
+      expect(screen.queryByText(/forme selezionate/)).not.toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Proprietà forma' })).toBeInTheDocument();
+    });
+
+    it('la pressione prolungata su una forma avvia la multiselezione', async () => {
+      mockedSetups.getSetup.mockResolvedValue(setup([drums, cymbal]));
+      renderEditor();
+
+      const shape = (await screen.findAllByTestId('stage-element'))[0];
+      fireEvent.touchStart(shape);
+
+      // La barra compare allo scadere della pressione prolungata
+      expect(await screen.findByText('1 forma selezionata')).toBeInTheDocument();
+
+      // Alzando il dito Konva emette anche un tocco: la forma resta selezionata
+      fireEvent.touchEnd(shape);
+      expect(screen.getByText('1 forma selezionata')).toBeInTheDocument();
+      const bar = screen.getByRole('toolbar', { name: 'Selezione multipla' });
+
+      // In multiselezione basta toccare le altre forme
+      await userEvent.click(shapes()[1]);
+      expect(within(bar).getByText('2 forme selezionate')).toBeInTheDocument();
+
+      await userEvent.click(within(bar).getByRole('button', { name: 'Esci' }));
+      expect(screen.queryByRole('toolbar', { name: 'Selezione multipla' })).not.toBeInTheDocument();
+      expect(screen.getByText('Seleziona una forma per cambiarne nome e colori')).toBeInTheDocument();
+    });
+
+    it('la pressione interrotta subito non avvia la multiselezione', async () => {
+      mockedSetups.getSetup.mockResolvedValue(setup([drums, cymbal]));
+      renderEditor();
+
+      const shape = (await screen.findAllByTestId('stage-element'))[0];
+
+      vi.useFakeTimers();
+      try {
+        fireEvent.touchStart(shape);
+        fireEvent.touchEnd(shape);
+        // Anche lasciando passare il tempo della pressione prolungata la modalità non parte
+        act(() => vi.advanceTimersByTime(LONG_PRESS_WAIT));
+      } finally {
+        vi.useRealTimers();
+      }
+
+      expect(screen.queryByRole('toolbar', { name: 'Selezione multipla' })).not.toBeInTheDocument();
+    });
   });
 
   it('aggiunge una stella', async () => {

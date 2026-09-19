@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyTransforms,
+  clampGroupDelta,
   clampView,
   copyElements,
   createElement,
   DEFAULT_VIEW,
   duplicateElement,
+  duplicateElements,
   exportFileName,
   fitScale,
   hasDefaultLabel,
@@ -13,8 +16,11 @@ import {
   MAX_ZOOM,
   MIN_ELEMENT_SIZE,
   moveElement,
+  moveElementsBy,
   normalizeElements,
+  normalizeRect,
   removeElement,
+  removeElements,
   reorderElement,
   sameElements,
   spawnPosition,
@@ -125,6 +131,76 @@ describe('stagePlot', () => {
     expect(result.map(e => e.id)).toEqual(['a', 'b', 'c']);
     expect(result[2]).toMatchObject({ x: 120, y: 120, label: 'Batteria', type: 'rect' });
     expect(duplicateElement(elements, 'x', 'c')).toBe(elements);
+  });
+
+  it('moveElementsBy sposta insieme solo le forme selezionate', () => {
+    const elements = [
+      createElement('rect', 'a', { x: 100, y: 100 }),
+      createElement('circle', 'b', { x: 200, y: 150 }),
+      createElement('circle', 'c', { x: 300, y: 300 }),
+    ];
+
+    const result = moveElementsBy(elements, ['a', 'b'], 50, -20);
+
+    expect(result[0]).toMatchObject({ x: 150, y: 80 });
+    expect(result[1]).toMatchObject({ x: 250, y: 130 });
+    expect(result[2]).toBe(elements[2]);
+  });
+
+  it('clampGroupDelta riduce lo spostamento senza deformare la selezione', () => {
+    const elements = [
+      createElement('rect', 'a', { x: 100, y: 100 }),
+      createElement('circle', 'b', { x: STAGE_WIDTH - 50, y: 100 }),
+    ];
+
+    // La forma più a destra può spostarsi solo di 50: anche l'altra si ferma lì
+    expect(clampGroupDelta(elements, ['a', 'b'], 300, 0)).toEqual({ x: 50, y: 0 });
+    expect(clampGroupDelta(elements, ['a', 'b'], -300, 0)).toEqual({ x: -100, y: 0 });
+    expect(clampGroupDelta(elements, [], 10, 10)).toEqual({ x: 0, y: 0 });
+
+    const moved = moveElementsBy(elements, ['a', 'b'], 300, 0);
+    expect(moved[1].x - moved[0].x).toBe(elements[1].x - elements[0].x);
+  });
+
+  it('duplicateElements copia tutte le forme selezionate e restituisce i nuovi id', () => {
+    const elements = [
+      createElement('rect', 'a', { x: 100, y: 100 }, 'Batteria'),
+      createElement('circle', 'b', { x: 0, y: 0 }),
+      createElement('circle', 'c', { x: 50, y: 50 }),
+    ];
+    let next = 0;
+
+    const result = duplicateElements(elements, ['a', 'c'], () => `copy-${++next}`);
+
+    expect(result.newIds).toEqual(['copy-1', 'copy-2']);
+    expect(result.elements.map(e => e.id)).toEqual(['a', 'b', 'c', 'copy-1', 'copy-2']);
+    expect(result.elements[3]).toMatchObject({ x: 120, y: 120, label: 'Batteria', type: 'rect' });
+  });
+
+  it('removeElements elimina tutte le forme indicate', () => {
+    const elements = ['a', 'b', 'c'].map(id => createElement('circle', id, { x: 0, y: 0 }));
+
+    expect(removeElements(elements, ['a', 'c']).map(e => e.id)).toEqual(['b']);
+    expect(removeElements(elements, []).map(e => e.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('applyTransforms aggiorna posizione e rotazione delle forme ruotate in blocco', () => {
+    const elements = [
+      createElement('rect', 'a', { x: 100, y: 100 }),
+      createElement('circle', 'b', { x: 200, y: 200 }),
+    ];
+
+    const result = applyTransforms(elements, [
+      { id: 'a', x: 150, y: STAGE_HEIGHT + 100, rotation: 90.26 },
+    ]);
+
+    // Le dimensioni non cambiano: la rotazione di gruppo non ridimensiona
+    expect(result[0]).toMatchObject({ x: 150, y: STAGE_HEIGHT, rotation: 90.3, width: elements[0].width });
+    expect(result[1]).toBe(elements[1]);
+  });
+
+  it('normalizeRect ha sempre larghezza e altezza positive', () => {
+    expect(normalizeRect({ x: 200, y: 150 }, { x: 50, y: 300 })).toEqual({ x: 50, y: 150, width: 150, height: 150 });
   });
 
   it('reorderElement porta avanti e indietro senza uscire dai limiti', () => {

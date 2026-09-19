@@ -119,6 +119,27 @@ export const duplicateElement = (elements: StageElement[], id: string, newId: st
   return [...elements, copy];
 };
 
+// Copie di più forme insieme (selezione multipla): stesso ordine relativo, tutte in primo piano
+export const duplicateElements = (
+  elements: StageElement[],
+  ids: string[],
+  createId: () => string
+): { elements: StageElement[]; newIds: string[] } => {
+  const copies = elements
+    .filter(element => ids.includes(element.id))
+    .map(element => ({
+      ...element,
+      id: createId(),
+      x: clamp(element.x + 20, 0, STAGE_WIDTH),
+      y: clamp(element.y + 20, 0, STAGE_HEIGHT),
+    }));
+
+  return { elements: [...elements, ...copies], newIds: copies.map(copy => copy.id) };
+};
+
+export const removeElements = (elements: StageElement[], ids: string[]): StageElement[] =>
+  elements.filter(element => !ids.includes(element.id));
+
 // Le forme successive nell'array sono disegnate sopra le precedenti
 export const reorderElement = (elements: StageElement[], id: string, move: 'forward' | 'backward'): StageElement[] => {
   const index = elements.findIndex(element => element.id === id);
@@ -140,6 +161,66 @@ export const sameElements = (a: StageElement[], b: StageElement[]): boolean =>
 // Fine di uno spostamento: il centro resta dentro il palco
 export const moveElement = (elements: StageElement[], id: string, x: number, y: number): StageElement[] =>
   updateElement(elements, id, { x: clamp(x, 0, STAGE_WIDTH), y: clamp(y, 0, STAGE_HEIGHT) });
+
+/**
+ * Spostamento in blocco: un unico delta valido per tutte le forme selezionate, ridotto quanto serve
+ * perché nessun centro esca dal palco. Clampando ogni forma da sé la selezione si deformerebbe,
+ * schiacciando contro il bordo le forme più esterne.
+ */
+export const clampGroupDelta = (elements: StageElement[], ids: string[], dx: number, dy: number): Point => {
+  const selected = elements.filter(element => ids.includes(element.id));
+  if (selected.length === 0) return { x: 0, y: 0 };
+
+  const xs = selected.map(element => element.x);
+  const ys = selected.map(element => element.y);
+  return {
+    x: clamp(dx, -Math.min(...xs), STAGE_WIDTH - Math.max(...xs)),
+    y: clamp(dy, -Math.min(...ys), STAGE_HEIGHT - Math.max(...ys)),
+  };
+};
+
+export const moveElementsBy = (elements: StageElement[], ids: string[], dx: number, dy: number): StageElement[] => {
+  const delta = clampGroupDelta(elements, ids, dx, dy);
+  if (delta.x === 0 && delta.y === 0) return elements;
+
+  return elements.map(element =>
+    ids.includes(element.id) ? { ...element, x: element.x + delta.x, y: element.y + delta.y } : element
+  );
+};
+
+export interface PlacementResult {
+  id: string;
+  x: number;
+  y: number;
+  rotation: number;
+}
+
+/**
+ * Rotazione di un gruppo di forme: ruotando più nodi insieme Konva cambia solo posizione e rotazione
+ * di ciascuno (il ridimensionamento è disattivato), quindi non serve convertire una scala in dimensioni.
+ */
+export const applyTransforms = (elements: StageElement[], results: PlacementResult[]): StageElement[] =>
+  elements.map(element => {
+    const result = results.find(item => item.id === element.id);
+    if (!result) return element;
+
+    return {
+      ...element,
+      x: clamp(result.x, 0, STAGE_WIDTH),
+      y: clamp(result.y, 0, STAGE_HEIGHT),
+      rotation: Math.round(result.rotation * 10) / 10,
+    };
+  });
+
+export interface Rect extends Point, Size {}
+
+// Rettangolo di selezione tra due punti, con larghezza e altezza sempre positive
+export const normalizeRect = (start: Point, end: Point): Rect => ({
+  x: Math.min(start.x, end.x),
+  y: Math.min(start.y, end.y),
+  width: Math.abs(end.x - start.x),
+  height: Math.abs(end.y - start.y),
+});
 
 export interface TransformResult {
   x: number;

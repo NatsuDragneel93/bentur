@@ -1,4 +1,4 @@
-import React, { useEffect, useImperativeHandle, useRef } from 'react';
+import React, { useEffect, useImperativeHandle, useRef, useState } from 'react';
 import Konva from 'konva';
 import { Ellipse, Group, Layer, Line, Rect, Shape, Stage, Star, Text, Transformer } from 'react-konva';
 import {
@@ -6,6 +6,8 @@ import {
   isShapeType,
   keepsRatio,
   MIN_ELEMENT_SIZE,
+  normalizeRect,
+  PlacementResult,
   Point,
   ShapeType,
   Size,
@@ -23,7 +25,13 @@ import { STAGE_ACCENT, STAGE_BACKGROUND, STAGE_BORDER, STAGE_CAPTION, STAGE_DOT,
 Konva.hitOnDragEnabled = true;
 
 const BACKGROUND_NAME = 'se-background';
+const ELEMENT_NAME = 'se-element';
 const WHEEL_ZOOM_FACTOR = 1.1;
+
+// Pressione prolungata su una forma (touch): entra in multiselezione
+const LONG_PRESS_MS = 500;
+// Sotto questa soglia (in pixel sullo schermo) il trascinamento sullo sfondo è un semplice clic nel vuoto
+const MARQUEE_MIN_SIZE = 4;
 
 // Maniglie più grandi sui dispositivi touch
 const isCoarsePointer = () =>
@@ -34,6 +42,20 @@ const BODY_NAME = 'se-body';
 const SHADOW = { shadowColor: 'black', shadowOpacity: 0.55, shadowBlur: 18, shadowOffsetY: 6, shadowForStrokeEnabled: false };
 // Ombra più ampia mentre si trascina: la forma sembra sollevata dal palco
 const DRAG_SHADOW = { shadowBlur: 26, shadowOffsetY: 12 };
+
+// Inizio e fine del trascinamento: la forma si solleva dal palco e poi si riappoggia
+const liftShape = (node: Konva.Node) => {
+  node.opacity(0.9);
+  (node as Konva.Group).findOne(`.${BODY_NAME}`)?.setAttrs(DRAG_SHADOW);
+};
+
+const dropShape = (node: Konva.Node) => {
+  node.opacity(1);
+  (node as Konva.Group).findOne(`.${BODY_NAME}`)?.setAttrs({
+    shadowBlur: SHADOW.shadowBlur,
+    shadowOffsetY: SHADOW.shadowOffsetY,
+  });
+};
 
 const DOT_SPACING = 26;
 // Scritta "Pubblico" sotto il bordo del palco, in pixel sullo schermo
@@ -135,7 +157,9 @@ export interface StageCanvasHandle {
 interface StageCanvasProps {
   ref?: React.Ref<StageCanvasHandle>;
   elements: StageElement[];
-  selectedId: string | null;
+  selectedIds: string[];
+  // Modalità multiselezione su touch: ogni tocco aggiunge o toglie una forma
+  multiSelectMode: boolean;
   // Rapporto tra pixel sullo schermo e unità logiche del palco, senza zoom
   baseScale: number;
   // Dimensioni della tela: tutto lo spazio disponibile, il palco vi è centrato
@@ -145,11 +169,20 @@ interface StageCanvasProps {
   // Scritta sotto il bordo inferiore del palco (lato pubblico)
   audienceLabel: string;
   onViewChange: (view: StageView) => void;
-  onSelect: (id: string | null) => void;
+  // additive = Ctrl/Cmd/Maiusc o modalità multiselezione: aggiunge o toglie dalla selezione
+  onSelect: (id: string | null, additive?: boolean) => void;
+  // Fine del rettangolo di selezione: le forme intersecate
+  onSelectMany: (ids: string[], additive: boolean) => void;
   // Doppio clic / doppio tocco su una forma: apre nome e colori
   onEdit: (id: string) => void;
+  // Pressione prolungata su una forma (touch): avvia la multiselezione
+  onLongPress: (id: string) => void;
   onMove: (id: string, x: number, y: number) => void;
+  // Spostamento in blocco: un unico delta per tutte le forme selezionate
+  onMoveMany: (dx: number, dy: number) => void;
   onTransform: (id: string, result: TransformResult) => void;
+  // Rotazione in blocco: posizione e rotazione di ogni forma selezionata
+  onTransformMany: (results: PlacementResult[]) => void;
   onDropShape: (type: ShapeType, position: Point) => void;
 }
 
@@ -159,7 +192,8 @@ const middle = (a: Point, b: Point): Point => ({ x: (a.x + b.x) / 2, y: (a.y + b
 const StageCanvas: React.FC<StageCanvasProps> = ({
   ref,
   elements,
-  selectedId,
+  selectedIds,
+  multiSelectMode,
   baseScale,
   viewport,
   view,
@@ -167,28 +201,51 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
   audienceLabel,
   onViewChange,
   onSelect,
+  onSelectMany,
   onEdit,
+  onLongPress,
   onMove,
+  onMoveMany,
   onTransform,
+  onTransformMany,
   onDropShape,
 }) => {
   const stageRef = useRef<Konva.Stage>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   // Stato del pizzico a due dita in corso
   const pinchRef = useRef<{ center: Point; distance: number } | null>(null);
-  const selected = elements.find(element => element.id === selectedId) ?? null;
+  // Timer della pressione prolungata (touch) e segnale che è già scattata
+  const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFiredRef = useRef(false);
+  // Rettangolo di selezione in corso (mouse), in unità logiche del palco
+  const [marquee, setMarquee] = useState<{ start: Point; current: Point; additive: boolean } | null>(null);
+  const multi = selectedIds.length > 1;
+  const selected = !multi ? elements.find(element => element.id === selectedIds[0]) ?? null : null;
   const scale = baseScale * view.zoom;
 
-  // Collega le maniglie di ridimensionamento/rotazione alla forma selezionata
+  // Collega le maniglie di ridimensionamento/rotazione alle forme selezionate
   useEffect(() => {
     const transformer = transformerRef.current;
     const stage = stageRef.current;
     if (!transformer || !stage) return;
 
-    const node = selectedId ? stage.findOne(`#${selectedId}`) : undefined;
-    transformer.nodes(node ? [node] : []);
+    const nodes = selectedIds.flatMap(id => {
+      const node = stage.findOne(`#${id}`);
+      return node ? [node] : [];
+    });
+    transformer.nodes(nodes);
     transformer.getLayer()?.batchDraw();
-  }, [selectedId, elements]);
+  }, [selectedIds, elements]);
+
+  // Il timer della pressione prolungata non deve sopravvivere alla pagina
+  useEffect(() => () => {
+    if (longPressRef.current) clearTimeout(longPressRef.current);
+  }, []);
+
+  const cancelLongPress = () => {
+    if (longPressRef.current) clearTimeout(longPressRef.current);
+    longPressRef.current = null;
+  };
 
   useImperativeHandle(ref, () => ({
     exportImage: () => {
@@ -213,10 +270,80 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
     },
   }), [view, scale]);
 
-  const deselectOnEmpty = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
-    if (e.target === e.target.getStage() || e.target.name() === BACKGROUND_NAME) {
-      onSelect(null);
+  const isEmptyArea = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) =>
+    e.target === e.target.getStage() || e.target.name() === BACKGROUND_NAME;
+
+  // Mouse: trascinando sul vuoto si disegna il rettangolo di selezione (lo sfondo non sposta più la vista)
+  const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (!isEmptyArea(e) || e.evt.button !== 0) return;
+
+    const position = stageRef.current?.getRelativePointerPosition();
+    if (!position) return;
+    setMarquee({ start: position, current: position, additive: e.evt.ctrlKey || e.evt.metaKey || e.evt.shiftKey });
+  };
+
+  const handleMouseMove = () => {
+    const position = stageRef.current?.getRelativePointerPosition();
+    if (marquee && position) setMarquee({ ...marquee, current: position });
+  };
+
+  const handleMouseUp = () => {
+    if (!marquee) return;
+    setMarquee(null);
+
+    const stage = stageRef.current;
+    const area = normalizeRect(marquee.start, marquee.current);
+    // Trascinamento troppo corto in entrambe le direzioni: è un clic nel vuoto, quindi deseleziona
+    // (un rettangolo basso e larghissimo serve invece a prendere una fila di forme)
+    if (!stage || (area.width * scale < MARQUEE_MIN_SIZE && area.height * scale < MARQUEE_MIN_SIZE)) {
+      if (!marquee.additive) onSelect(null);
+      return;
     }
+
+    // getClientRect tiene conto di rotazione, zoom e spostamento della vista
+    const box = {
+      x: area.x * scale + view.x,
+      y: area.y * scale + view.y,
+      width: area.width * scale,
+      height: area.height * scale,
+    };
+    const ids = stage
+      .find(`.${ELEMENT_NAME}`)
+      .filter(node => Konva.Util.haveIntersection(box, node.getClientRect()))
+      .map(node => node.id());
+    onSelectMany(ids, marquee.additive);
+  };
+
+  const deselectOnTouch = (e: Konva.KonvaEventObject<TouchEvent>) => {
+    if (isEmptyArea(e)) onSelect(null);
+  };
+
+  // Clic/tocco su una forma: con Ctrl, Cmd, Maiusc o in multiselezione si aggiunge alla selezione
+  const selectShape = (id: string, e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    // Alzando il dito dopo una pressione prolungata Konva emette anche un tocco:
+    // va ignorato, altrimenti toglierebbe subito la forma appena selezionata
+    if (longPressFiredRef.current) {
+      longPressFiredRef.current = false;
+      return;
+    }
+
+    const evt = e.evt as MouseEvent & TouchEvent;
+    const additive = multiSelectMode || evt.ctrlKey || evt.metaKey || evt.shiftKey;
+    // Premendo su una forma già selezionata la selezione non si riduce: così si può
+    // trascinare tutto il gruppo partendo da una qualsiasi delle sue forme
+    if (!additive && selectedIds.includes(id)) return;
+    onSelect(id, additive);
+  };
+
+  const startLongPress = (id: string) => {
+    cancelLongPress();
+    longPressFiredRef.current = false;
+    longPressRef.current = setTimeout(() => {
+      longPressRef.current = null;
+      longPressFiredRef.current = true;
+      navigator.vibrate?.(30);
+      onLongPress(id);
+    }, LONG_PRESS_MS);
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -231,7 +358,29 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
     if (position) onDropShape(type, position);
   };
 
+  // Rotazione di più forme insieme: Konva aggiorna posizione e rotazione di ogni nodo, non la scala
+  const handleGroupTransformEnd = () => {
+    const nodes = transformerRef.current?.nodes() ?? [];
+    onTransformMany(nodes.map(node => ({ id: node.id(), x: node.x(), y: node.y(), rotation: node.rotation() })));
+  };
+
+  /**
+   * Fine dello spostamento in blocco. Konva sposta insieme tutte le forme agganciate al riquadro
+   * (trascinando una forma o l'area vuota del riquadro): basta misurare lo spostamento di una
+   * per salvarlo su tutte, senza clampare ogni forma da sé e deformare la selezione.
+   */
+  const handleGroupDragEnd = () => {
+    const first = transformerRef.current?.nodes()[0];
+    const source = elements.find(element => element.id === first?.id());
+    if (!first || !source) return;
+
+    onMoveMany(first.x() - source.x, first.y() - source.y);
+  };
+
   const handleTransformEnd = (element: StageElement, e: Konva.KonvaEventObject<Event>) => {
+    // Con più forme selezionate se ne occupa il Transformer, una volta sola per tutte
+    if (multi) return;
+
     const node = e.target;
     const result = { x: node.x(), y: node.y(), rotation: node.rotation(), scaleX: node.scaleX(), scaleY: node.scaleY() };
     // Le dimensioni diventano width/height: la scala del nodo torna a 1
@@ -258,7 +407,7 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
     e.evt.preventDefault();
     // Il pizzico ha la precedenza sul trascinamento iniziato con il primo dito
     if (stage.isDragging()) stage.stopDrag();
-    stage.find('.se-element').forEach(node => {
+    stage.find(`.${ELEMENT_NAME}`).forEach(node => {
       if (node.isDragging()) node.stopDrag();
     });
 
@@ -299,8 +448,9 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
         scaleY={scale}
         x={view.x}
         y={view.y}
-        // Con lo zoom attivo si sposta la vista trascinando lo sfondo
-        draggable={view.zoom > 1}
+        // Solo su touch: con lo zoom attivo si sposta la vista trascinando con un dito.
+        // Col mouse il trascinamento sullo sfondo disegna il rettangolo di selezione.
+        draggable={view.zoom > 1 && coarse}
         dragBoundFunc={pos => {
           const bounded = clampView({ zoom: view.zoom, x: pos.x, y: pos.y }, baseScale, viewport);
           return { x: bounded.x, y: bounded.y };
@@ -309,10 +459,20 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
           if (e.target === stageRef.current) onViewChange({ zoom: view.zoom, x: e.target.x(), y: e.target.y() });
         }}
         onWheel={handleWheel}
-        onMouseDown={deselectOnEmpty}
-        onTouchStart={deselectOnEmpty}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={() => { pinchRef.current = null; }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        // Uscendo dalla tela il rettangolo si annulla, altrimenti resterebbe disegnato
+        onMouseLeave={() => setMarquee(null)}
+        onTouchStart={deselectOnTouch}
+        onTouchMove={e => {
+          cancelLongPress();
+          handleTouchMove(e);
+        }}
+        onTouchEnd={() => {
+          pinchRef.current = null;
+          cancelLongPress();
+        }}
       >
         <Layer>
           {/* Palco: area salvata ed esportata; intorno la tela continua con lo stesso sfondo */}
@@ -346,30 +506,31 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
             <Group
               key={element.id}
               id={element.id}
-              name="se-element"
+              name={ELEMENT_NAME}
               x={element.x}
               y={element.y}
               rotation={element.rotation}
               draggable
-              onMouseDown={() => onSelect(element.id)}
-              onTap={() => onSelect(element.id)}
+              onMouseDown={e => selectShape(element.id, e)}
+              onTap={e => selectShape(element.id, e)}
+              onTouchStart={() => startLongPress(element.id)}
+              onTouchMove={cancelLongPress}
+              onTouchEnd={cancelLongPress}
               onDblClick={() => onEdit(element.id)}
               onDblTap={() => onEdit(element.id)}
               onDragStart={e => {
-                // Durante il trascinamento la forma "si solleva": ombra più ampia e leggera trasparenza
-                e.target.opacity(0.9);
-                (e.target as Konva.Group).findOne(`.${BODY_NAME}`)?.setAttrs(DRAG_SHADOW);
-                onSelect(element.id);
+                cancelLongPress();
+                // Durante il trascinamento la forma "si solleva": ombra più ampia e leggera trasparenza.
+                // Con più forme selezionate Konva trascina anche le altre, che passano di qui a loro volta.
+                liftShape(e.target);
+                if (!selectedIds.includes(element.id)) onSelect(element.id);
               }}
               onDragEnd={e => {
                 // L'evento risale fino allo Stage: qui interessa solo la forma
                 e.cancelBubble = true;
-                e.target.opacity(1);
-                (e.target as Konva.Group).findOne(`.${BODY_NAME}`)?.setAttrs({
-                  shadowBlur: SHADOW.shadowBlur,
-                  shadowOffsetY: SHADOW.shadowOffsetY,
-                });
-                onMove(element.id, e.target.x(), e.target.y());
+                dropShape(e.target);
+                // Con più forme selezionate lo spostamento si salva una volta sola, dal riquadro
+                if (!multi) onMove(element.id, e.target.x(), e.target.y());
               }}
               onTransformEnd={e => handleTransformEnd(element, e)}
             >
@@ -378,9 +539,28 @@ const StageCanvas: React.FC<StageCanvasProps> = ({
             </Group>
           ))}
 
+          {/* Rettangolo di selezione: sopra le forme, non intercetta gli eventi */}
+          {marquee && (
+            <Rect
+              {...normalizeRect(marquee.start, marquee.current)}
+              fill={`${STAGE_ACCENT}22`}
+              stroke={STAGE_ACCENT}
+              strokeWidth={1}
+              strokeScaleEnabled={false}
+              dash={[4, 4]}
+              listening={false}
+            />
+          )}
+
           <Transformer
             ref={transformerRef}
             rotationSnaps={[0, 90, 180, 270]}
+            // Con più forme selezionate si può solo ruotare il gruppo, non ridimensionarlo
+            resizeEnabled={!multi}
+            // Tutta l'area del riquadro si può trascinare, anche dove non c'è una forma
+            shouldOverdrawWholeArea={multi}
+            onTransformEnd={multi ? handleGroupTransformEnd : undefined}
+            onDragEnd={multi ? handleGroupDragEnd : undefined}
             keepRatio={selected ? keepsRatio(selected.type) : false}
             enabledAnchors={
               selected?.type === 'line'

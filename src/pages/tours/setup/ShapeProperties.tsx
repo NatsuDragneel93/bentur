@@ -52,6 +52,8 @@ const ColorField: React.FC<ColorFieldProps> = ({ label, value, presets, onChange
 
 interface ShapePropertiesProps {
   element: StageElement | null;
+  // Numero di forme selezionate: con più di una si mostrano solo le azioni di gruppo
+  selectedCount: number;
   // side = colonna a destra (PC); sheet = pannello in primo piano sopra il palco (tablet e cellulare)
   variant: 'side' | 'sheet';
   canBringForward: boolean;
@@ -67,6 +69,7 @@ interface ShapePropertiesProps {
 // Pannello della forma selezionata: a destra su PC, in primo piano sopra il palco su tablet e cellulare
 const ShapeProperties: React.FC<ShapePropertiesProps> = ({
   element,
+  selectedCount,
   variant,
   canBringForward,
   canSendBackward,
@@ -78,6 +81,27 @@ const ShapeProperties: React.FC<ShapePropertiesProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
+
+  // Più forme selezionate: nome e colori restano per la forma singola, qui solo duplica ed elimina
+  if (selectedCount > 1) {
+    return (
+      <aside className="se-properties se-properties--side" aria-label={t('setupEditor.multi.title')}>
+        <div className="se-properties-header">
+          <h2>{t('setupEditor.multi.selected', { count: selectedCount })}</h2>
+        </div>
+        <p className="se-properties-hint">{t('setupEditor.multi.hint')}</p>
+
+        <div className="se-properties-actions">
+          <Button icon={faCopy} onClick={onDuplicate}>
+            {t('setupEditor.properties.duplicate')}
+          </Button>
+          <Button icon={faTrashCan} danger onClick={onDelete}>
+            {t('setupEditor.deleteShape')}
+          </Button>
+        </div>
+      </aside>
+    );
+  }
 
   if (!element) {
     return (

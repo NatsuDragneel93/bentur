@@ -333,6 +333,14 @@
   }
 }
 
+// Spiegazione della selezione multipla, sopra le azioni di gruppo
+.se-properties-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+
 .se-properties-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -370,6 +378,39 @@
   .se-properties {
     padding: 0;
   }
+}
+
+// --- Barra della selezione multipla ---
+
+// Sovrapposta all'area di lavoro come l'aiuto: non toglie spazio al palco
+.se-multibar {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 11;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  transform: translateX(-50%);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+
+  @media (max-width: 768px) {
+    top: 8px;
+    right: 8px;
+    left: 8px;
+    justify-content: center;
+    transform: none;
+  }
+}
+
+.se-multibar-count {
+  margin-right: 4px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 // --- Aiuto sui gesti ---

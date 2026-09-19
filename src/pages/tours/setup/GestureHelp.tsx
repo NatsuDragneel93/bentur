@@ -17,6 +17,7 @@ const GestureHelp: React.FC<GestureHelpProps> = ({ mobile, compact, onClose }) =
   const tips = [
     t(mobile ? 'setupEditor.help.addTouch' : 'setupEditor.help.addMouse'),
     t(mobile ? 'setupEditor.help.moveTouch' : 'setupEditor.help.moveMouse'),
+    t(mobile ? 'setupEditor.help.multiTouch' : 'setupEditor.help.multiMouse'),
     t('setupEditor.help.resize'),
     t(compact ? 'setupEditor.help.editTouch' : 'setupEditor.help.editMouse'),
     t(mobile ? 'setupEditor.help.zoomTouch' : 'setupEditor.help.zoomMouse'),

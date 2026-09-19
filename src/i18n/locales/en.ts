@@ -307,6 +307,13 @@ const en: typeof it = {
       bringForward: 'Forward',
       sendBackward: 'Backward',
     },
+    multi: {
+      title: 'Multiple selection',
+      selected_one: '{{count}} shape selected',
+      selected_other: '{{count}} shapes selected',
+      hint: 'Move, rotate, duplicate or delete them together. Name and colors are changed one shape at a time.',
+      exit: 'Done',
+    },
     help: {
       title: 'How to use',
       close: 'Close help',
@@ -318,7 +325,9 @@ const en: typeof it = {
       editTouch: 'For name and colors tap "Edit" or double-tap the shape',
       editMouse: 'Change name and colors of the selected shape in the panel on the right',
       zoomTouch: 'Use two fingers to zoom and move the stage',
-      zoomMouse: 'Use the mouse wheel to zoom; while zoomed, drag the background to move the stage',
+      zoomMouse: 'Use the mouse wheel to zoom towards the pointer, or the zoom buttons at the top',
+      multiTouch: 'Press and hold a shape to select more than one, then drag any of them to move them together',
+      multiMouse: 'Drag on the empty stage to select several shapes (Ctrl+click adds or removes one), then drag the frame to move them together',
     },
     conflict: {
       title: 'Setup changed by another user',

@@ -4,7 +4,9 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   faArrowLeft,
+  faCheck,
   faCircleQuestion,
+  faCopy,
   faDownload,
   faExpand,
   faFloppyDisk,
@@ -13,6 +15,7 @@ import {
   faPen,
   faRotateLeft,
   faRotateRight,
+  faTrashCan,
 } from '@fortawesome/free-solid-svg-icons';
 import LoadingState from '../../../components/ui/LoadingState';
 import ConfirmDialog from '../../../components/ui/ConfirmDialog';
@@ -26,19 +29,23 @@ import artistSetupsService, { StageSetup } from '../../../services/artistSetups.
 import { generateItemId } from '../../../utils/categoryItems';
 import { commit, createHistory, History, redo, undo } from '../../../utils/history';
 import {
+  applyTransforms,
   clampView,
   copyElements,
   createElement,
   DEFAULT_VIEW,
   duplicateElement,
+  duplicateElements,
   exportFileName,
   fitScale,
   hasDefaultLabel,
   MAX_STAGE_ELEMENTS,
   MAX_ZOOM,
   moveElement,
+  moveElementsBy,
+  PlacementResult,
   Point,
-  removeElement,
+  removeElements,
   reorderElement,
   sameElements,
   ShapeType,
@@ -120,12 +127,17 @@ const SetupEditor: React.FC = () => {
   const compact = useMediaQuery(COMPACT_MEDIA_QUERY);
   const { ref: canvasAreaRef, viewport, scale } = useFitScale(mobile ? STAGE_MARGIN_MOBILE : STAGE_MARGIN);
   const canvasRef = useRef<StageCanvasHandle>(null);
+  // Forme correnti lette dalle scorciatoie da tastiera, senza riagganciare l'ascoltatore a ogni modifica
+  const elementsRef = useRef<StageElement[]>([]);
 
   // Ultima versione salvata (o letta) su Firestore: null finché non è caricata
   const [saved, setSaved] = useState<StageSetup | null>(null);
   const [loadingSetup, setLoadingSetup] = useState(true);
   const [history, setHistory] = useState<History<StageElement[]>>(() => createHistory([]));
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Selezione corrente, nell'ordine in cui è stata fatta
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  // Touch: dopo una pressione prolungata ogni tocco aggiunge o toglie una forma dalla selezione
+  const [multiSelectMode, setMultiSelectMode] = useState(false);
   const [storedView, setView] = useState<StageView>(DEFAULT_VIEW);
   const [saving, setSaving] = useState(false);
   // Su tablet e cellulare il pannello proprietà si apre solo su richiesta (Modifica o doppio tocco)
@@ -141,11 +153,17 @@ const SetupEditor: React.FC = () => {
   const elements = history.present;
   // La vista resta valida anche quando la scala cambia (es. rotazione del telefono)
   const view = clampView(storedView, scale, viewport);
+  // Nome e colori si cambiano su una forma sola: con più forme il pannello mostra solo le azioni di gruppo
+  const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
   const selectedIndex = elements.findIndex(element => element.id === selectedId);
   const selected = selectedIndex === -1 ? null : elements[selectedIndex];
   const dirty = saved !== null && !sameElements(elements, saved.elements);
+  elementsRef.current = elements;
   const validSetupKey = isSetupKey(setupKey) ? setupKey : null;
   const showPropertiesSheet = compact && editing && selected !== null;
+  // Barra delle azioni di gruppo: in multiselezione da touch, o quando manca il pannello laterale
+  // (su PC conteggio e azioni sono già nel pannello a destra)
+  const showMultiBar = multiSelectMode || (compact && selectedIds.length > 1);
 
   useUnsavedChangesWarning(dirty);
 
@@ -160,7 +178,7 @@ const SetupEditor: React.FC = () => {
         if (cancelled) return;
         setSaved(setup);
         setHistory(createHistory(setup.elements));
-        setSelectedId(null);
+        setSelectedIds([]);
 
         if (validSetupKey === 'b' && setup.elements.length === 0) {
           const setupA = await artistSetupsService.getSetup(tourId, artistId, 'a').catch(error => {
@@ -191,14 +209,43 @@ const SetupEditor: React.FC = () => {
   }, []);
 
   // Selezionando nel vuoto (o un'altra forma senza pannello aperto) il pannello si chiude
-  const selectShape = (id: string | null) => {
-    setSelectedId(id);
-    if (!id) setEditing(false);
+  const selectShape = (id: string | null, additive = false) => {
+    if (!id) {
+      setSelectedIds([]);
+      setEditing(false);
+      setMultiSelectMode(false);
+      return;
+    }
+    if (!additive) {
+      setSelectedIds([id]);
+      return;
+    }
+    // Ctrl+clic o multiselezione: la forma già selezionata esce dalla selezione
+    setSelectedIds(current => (current.includes(id) ? current.filter(other => other !== id) : [...current, id]));
+    setEditing(false);
+  };
+
+  // Fine del rettangolo di selezione
+  const selectShapes = (ids: string[], additive: boolean) => {
+    setEditing(false);
+    setSelectedIds(current => (additive ? [...current, ...ids.filter(id => !current.includes(id))] : ids));
   };
 
   const editShape = (id: string) => {
-    setSelectedId(id);
+    setSelectedIds([id]);
     setEditing(true);
+  };
+
+  // Touch: pressione prolungata su una forma
+  const startMultiSelect = (id: string) => {
+    setMultiSelectMode(true);
+    setEditing(false);
+    setSelectedIds(current => (current.includes(id) ? current : [...current, id]));
+  };
+
+  const exitMultiSelect = () => {
+    setMultiSelectMode(false);
+    setSelectedIds([]);
   };
 
   const closeHelp = () => {
@@ -214,24 +261,39 @@ const SetupEditor: React.FC = () => {
     const label = hasDefaultLabel(type) ? t(`setupEditor.shapes.${type}`) : '';
     const element = createElement(type, generateItemId(), position ?? spawnPosition(elements.length, visibleCenter(view, scale, viewport)), label);
     applyChange(current => [...current, element]);
-    setSelectedId(element.id);
+    setSelectedIds([element.id]);
   };
 
   const deleteSelected = useCallback(() => {
-    if (!selectedId) return;
-    applyChange(current => removeElement(current, selectedId));
-    setSelectedId(null);
+    if (selectedIds.length === 0) return;
+    applyChange(current => removeElements(current, selectedIds));
+    setSelectedIds([]);
     setEditing(false);
-  }, [selectedId, applyChange]);
+    setMultiSelectMode(false);
+  }, [selectedIds, applyChange]);
 
   const duplicateSelected = () => {
-    if (!selectedId) return;
-    const newId = generateItemId();
-    applyChange(current => duplicateElement(current, selectedId, newId));
-    setSelectedId(newId);
+    if (selectedIds.length === 0) return;
+    if (elements.length + selectedIds.length > MAX_STAGE_ELEMENTS) {
+      showError(t('setupEditor.tooManyShapes', { max: MAX_STAGE_ELEMENTS }));
+      return;
+    }
+
+    // Una forma sola: stessa logica di prima; più forme: copie di tutta la selezione
+    if (selectedIds.length === 1) {
+      const newId = generateItemId();
+      applyChange(current => duplicateElement(current, selectedIds[0], newId));
+      setSelectedIds([newId]);
+      return;
+    }
+
+    const { elements: copied, newIds } = duplicateElements(elements, selectedIds, generateItemId);
+    applyChange(() => copied);
+    setSelectedIds(newIds);
   };
 
-  // Scorciatoie: Canc elimina, Ctrl+Z annulla, Ctrl+Y / Ctrl+Maiusc+Z ripristina (non mentre si scrive)
+  // Scorciatoie: Canc elimina, Esc deseleziona, Ctrl+A seleziona tutto,
+  // Ctrl+Z annulla, Ctrl+Y / Ctrl+Maiusc+Z ripristina (non mentre si scrive)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isEditingText(e.target)) return;
@@ -239,6 +301,14 @@ const SetupEditor: React.FC = () => {
       const key = e.key.toLowerCase();
       if (e.key === 'Delete' || e.key === 'Backspace') {
         deleteSelected();
+      } else if (e.key === 'Escape') {
+        setSelectedIds([]);
+        setEditing(false);
+        setMultiSelectMode(false);
+      } else if ((e.ctrlKey || e.metaKey) && key === 'a') {
+        e.preventDefault();
+        setSelectedIds(elementsRef.current.map(element => element.id));
+        setEditing(false);
       } else if ((e.ctrlKey || e.metaKey) && key === 'z') {
         e.preventDefault();
         setHistory(e.shiftKey ? redo : undo);
@@ -282,7 +352,7 @@ const SetupEditor: React.FC = () => {
     if (!conflict) return;
     setSaved(conflict);
     setHistory(createHistory(conflict.elements));
-    setSelectedId(null);
+    setSelectedIds([]);
     setConflict(null);
   };
 
@@ -316,6 +386,7 @@ const SetupEditor: React.FC = () => {
   const propertiesPanel = (
     <ShapeProperties
       element={selected}
+      selectedCount={selectedIds.length}
       variant={compact ? 'sheet' : 'side'}
       canBringForward={selectedIndex !== -1 && selectedIndex < elements.length - 1}
       canSendBackward={selectedIndex > 0}
@@ -428,11 +499,29 @@ const SetupEditor: React.FC = () => {
             {/* In sovrimpressione: non toglie spazio al palco */}
             {helpOpen && <GestureHelp mobile={mobile} compact={compact} onClose={closeHelp} />}
 
+            {showMultiBar && (
+              <div className="se-multibar" role="toolbar" aria-label={t('setupEditor.multi.title')}>
+                <span className="se-multibar-count">
+                  {t('setupEditor.multi.selected', { count: selectedIds.length })}
+                </span>
+                <Button icon={faCopy} onClick={duplicateSelected} disabled={selectedIds.length === 0}>
+                  {t('setupEditor.properties.duplicate')}
+                </Button>
+                <Button icon={faTrashCan} danger onClick={deleteSelected} disabled={selectedIds.length === 0}>
+                  {t('setupEditor.deleteShape')}
+                </Button>
+                <Button variant="primary" icon={faCheck} onClick={exitMultiSelect}>
+                  {t('setupEditor.multi.exit')}
+                </Button>
+              </div>
+            )}
+
             <div className="se-canvas-area" ref={canvasAreaRef} style={{ backgroundColor: STAGE_BACKGROUND }}>
               <StageCanvas
                 ref={canvasRef}
                 elements={elements}
-                selectedId={selectedId}
+                selectedIds={selectedIds}
+                multiSelectMode={multiSelectMode}
                 baseScale={scale}
                 viewport={viewport}
                 view={view}
@@ -440,9 +529,13 @@ const SetupEditor: React.FC = () => {
                 audienceLabel={t('setupEditor.audience')}
                 onViewChange={setView}
                 onSelect={selectShape}
+                onSelectMany={selectShapes}
                 onEdit={editShape}
+                onLongPress={startMultiSelect}
                 onMove={(id, x, y) => applyChange(current => moveElement(current, id, x, y))}
+                onMoveMany={(dx, dy) => applyChange(current => moveElementsBy(current, selectedIds, dx, dy))}
                 onTransform={(id, result) => applyChange(current => transformElement(current, id, result))}
+                onTransformMany={(results: PlacementResult[]) => applyChange(current => applyTransforms(current, results))}
                 onDropShape={addShape}
               />
             </div>

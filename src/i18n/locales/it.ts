@@ -306,6 +306,13 @@ const it = {
       bringForward: 'Porta avanti',
       sendBackward: 'Porta indietro',
     },
+    multi: {
+      title: 'Selezione multipla',
+      selected_one: '{{count}} forma selezionata',
+      selected_other: '{{count}} forme selezionate',
+      hint: 'Sposta, ruota, duplica o elimina tutte insieme. Nome e colori si cambiano selezionando una forma sola.',
+      exit: 'Esci',
+    },
     help: {
       title: 'Come si usa',
       close: "Chiudi l'aiuto",
@@ -317,7 +324,9 @@ const it = {
       editTouch: 'Per nome e colori tocca "Modifica" oppure tocca due volte la forma',
       editMouse: 'Nome e colori della forma selezionata si cambiano nel pannello a destra',
       zoomTouch: 'Con due dita ingrandisci e sposti il palco',
-      zoomMouse: 'Con la rotella ingrandisci; con lo zoom attivo trascina lo sfondo per spostare il palco',
+      zoomMouse: 'Con la rotella ingrandisci verso il puntatore, oppure usa i pulsanti dello zoom in alto',
+      multiTouch: 'Tieni premuta una forma per selezionarne più di una, poi trascinane una per spostarle insieme',
+      multiMouse: 'Trascina sul palco vuoto per selezionare più forme (con Ctrl+clic ne aggiungi o togli una), poi trascina il riquadro per spostarle insieme',
     },
     conflict: {
       title: 'Setup modificato da un altro utente',
