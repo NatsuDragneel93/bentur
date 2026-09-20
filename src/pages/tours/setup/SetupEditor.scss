@@ -39,7 +39,6 @@
 }
 
 .se-back {
-  grid-area: back;
   gap: 8px;
   max-width: 240px;
 
@@ -48,6 +47,18 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+}
+
+.se-nav {
+  grid-area: back;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.se-home {
+  flex-shrink: 0;
 }
 
 .se-heading {

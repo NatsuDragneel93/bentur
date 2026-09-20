@@ -447,6 +447,16 @@ a.card:hover,
     }
   }
 
+  &__home {
+    gap: 8px;
+
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
   @media (max-width: $bt-mobile) {
     margin-bottom: 24px;
   }

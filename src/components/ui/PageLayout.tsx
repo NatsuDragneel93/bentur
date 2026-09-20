@@ -1,5 +1,7 @@
 import React from 'react';
-import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faHouse } from '@fortawesome/free-solid-svg-icons';
+import { useTranslation } from 'react-i18next';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Button from './Button';
 import UserMenu from './UserMenu';
 import './ui.scss';
@@ -26,22 +28,46 @@ interface TopBarProps {
   start?: React.ReactNode;
   // Elementi prima dell'avatar
   end?: React.ReactNode;
+  // Mostra il collegamento rapido alla Home (nascosto automaticamente in /home)
+  showHome?: boolean;
+  // Permette di intercettare il click Home (es. conferma uscita)
+  onHomeClick?: () => void;
 }
 
 // Riga in alto: pulsante indietro a sinistra, avatar con menu utente a destra
-export const TopBar: React.FC<TopBarProps> = ({ back, start, end }) => (
-  <div className="bt-topbar">
-    {back && (
-      <Button icon={faArrowLeft} className="bt-topbar__back" onClick={back.onClick}>
-        <span>{back.label}</span>
-      </Button>
-    )}
-    {start}
-    <span className="bt-topbar__spacer" />
-    {end}
-    <UserMenu />
-  </div>
-);
+export const TopBar: React.FC<TopBarProps> = ({ back, start, end, showHome = true, onHomeClick }) => {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const canShowHome = showHome && location.pathname !== '/home';
+
+  const handleHomeClick = () => {
+    if (onHomeClick) {
+      onHomeClick();
+      return;
+    }
+    navigate('/home');
+  };
+
+  return (
+    <div className="bt-topbar">
+      {back && (
+        <Button icon={faArrowLeft} className="bt-topbar__back" onClick={back.onClick}>
+          <span>{back.label}</span>
+        </Button>
+      )}
+      {canShowHome && (
+        <Button icon={faHouse} className="bt-topbar__home" onClick={handleHomeClick}>
+          <span>{t('nav.home')}</span>
+        </Button>
+      )}
+      {start}
+      <span className="bt-topbar__spacer" />
+      {end}
+      <UserMenu />
+    </div>
+  );
+};
 
 interface PageTitleProps {
   title: string;

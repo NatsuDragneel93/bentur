@@ -10,6 +10,7 @@ import {
   faDownload,
   faExpand,
   faFloppyDisk,
+  faHouse,
   faMagnifyingGlassMinus,
   faMagnifyingGlassPlus,
   faPen,
@@ -68,6 +69,8 @@ import ShapeProperties from './ShapeProperties';
 import StageCanvas, { StageCanvasHandle } from './StageCanvas';
 import { STAGE_BACKGROUND } from './stageTheme';
 import './SetupEditor.scss';
+
+type LeaveTarget = 'artist' | 'home';
 
 const BUTTON_ZOOM_FACTOR = 1.25;
 
@@ -149,6 +152,7 @@ const SetupEditor: React.FC = () => {
   const [conflict, setConflict] = useState<StageSetup | null>(null);
   const [copySource, setCopySource] = useState<StageElement[] | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [leaveTarget, setLeaveTarget] = useState<LeaveTarget>('artist');
 
   const elements = history.present;
   // La vista resta valida anche quando la scala cambia (es. rotazione del telefono)
@@ -380,7 +384,27 @@ const SetupEditor: React.FC = () => {
   }
 
   const goBack = () => navigate(artistPath(tourId, artistId));
-  const requestBack = () => (dirty ? setConfirmLeave(true) : goBack());
+  const goHome = () => navigate('/home');
+
+  const runLeave = (target: LeaveTarget) => {
+    if (target === 'home') {
+      goHome();
+      return;
+    }
+    goBack();
+  };
+
+  const requestLeave = (target: LeaveTarget) => {
+    if (dirty) {
+      setLeaveTarget(target);
+      setConfirmLeave(true);
+      return;
+    }
+    runLeave(target);
+  };
+
+  const requestBack = () => requestLeave('artist');
+  const requestHome = () => requestLeave('home');
   const backLabel = artist?.name ?? t('setupEditor.back');
 
   const propertiesPanel = (
@@ -409,13 +433,23 @@ const SetupEditor: React.FC = () => {
   return (
     <div className="se-page">
       <header className="se-header">
-        {mobile ? (
-          <IconButton icon={faArrowLeft} className="se-back" onClick={requestBack} label={backLabel} />
-        ) : (
-          <Button icon={faArrowLeft} className="se-back" onClick={requestBack}>
-            <span>{backLabel}</span>
-          </Button>
-        )}
+        <div className="se-nav">
+          {mobile ? (
+            <>
+              <IconButton icon={faArrowLeft} className="se-back" onClick={requestBack} label={backLabel} />
+              <IconButton icon={faHouse} className="se-home" onClick={requestHome} label={t('nav.home')} />
+            </>
+          ) : (
+            <>
+              <Button icon={faArrowLeft} className="se-back" onClick={requestBack}>
+                <span>{backLabel}</span>
+              </Button>
+              <Button icon={faHouse} className="se-home" onClick={requestHome}>
+                <span>{t('nav.home')}</span>
+              </Button>
+            </>
+          )}
+        </div>
 
         <div className="se-heading">
           <h1>{t(validSetupKey === 'a' ? 'setupEditor.titleA' : 'setupEditor.titleB')}</h1>
@@ -602,7 +636,10 @@ const SetupEditor: React.FC = () => {
         open={confirmLeave}
         message={t('setupEditor.leaveConfirm.message')}
         confirmLabel={t('setupEditor.leaveConfirm.confirm')}
-        onConfirm={goBack}
+        onConfirm={() => {
+          setConfirmLeave(false);
+          runLeave(leaveTarget);
+        }}
         onCancel={() => setConfirmLeave(false)}
       />
     </div>
