@@ -113,7 +113,17 @@ const it = {
   },
   toDoTour: {
     title: 'To Do - Tour',
-    inProgress: 'Sezione To Do per i tour in sviluppo...',
+    subtitle: 'Le cose da fare degli artisti dei tuoi tour',
+  },
+  // Testi comuni alle pagine To Do - Tour e Inventario - Tour
+  tourLists: {
+    search: 'Cerca tour o artista...',
+    openArtist: 'Apri',
+    openArtistLabel: 'Apri {{name}}',
+    noTours: 'Non fai ancora parte di nessun tour.',
+    goToTours: 'Vai ai Tour',
+    noArtists: 'Nessun artista in questo tour',
+    artistsError: 'Errore nel caricamento degli artisti',
   },
   toBuy: {
     title: 'To Buy',
@@ -132,6 +142,9 @@ const it = {
   },
   inventoryTour: {
     title: 'Inventario - Tour',
+    subtitle: 'Spare e consumabili degli artisti dei tuoi tour',
+    spare: 'Spare',
+    consumables: 'Consumabili',
   },
   manuals: {
     title: 'Manuali',

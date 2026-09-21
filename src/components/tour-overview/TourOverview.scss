@@ -1,0 +1,204 @@
+// Prefisso "tov-" per non collidere con le classi globali delle altre pagine
+
+.tov-search {
+  margin-bottom: 24px;
+
+  @media (max-width: 768px) {
+    max-width: none;
+    margin-bottom: 14px;
+  }
+}
+
+.tov-tours {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  @media (max-width: 768px) {
+    gap: 10px;
+  }
+}
+
+.tov-tour {
+  gap: 0;
+  padding: 0;
+}
+
+.tov-tour-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+
+  @media (max-width: 768px) {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 14px 16px;
+  }
+}
+
+.tov-tour-toggle {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  @media (max-width: 768px) {
+    gap: 10px;
+  }
+}
+
+.tov-tour-icon {
+  flex-shrink: 0;
+  font-size: 16px;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+.tov-tour-name {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 22px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+
+  @media (max-width: 768px) {
+    font-size: 18px;
+  }
+}
+
+.tov-tour-tags {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.tov-tour-meta {
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+  font-size: 13px;
+}
+
+.tov-tour-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 20px 22px;
+  border-top: 1px solid var(--color-divider);
+
+  // Tour chiuso: resta montato (niente riletture) ma non si vede.
+  // Serve esplicito perché display:flex vincerebbe su [hidden]
+  &[hidden] {
+    display: none;
+  }
+
+  @media (max-width: 768px) {
+    gap: 10px;
+    padding: 12px 8px 14px;
+  }
+}
+
+// Riquadro "incassato" dell'artista: sfondo della pagina dentro la card del tour,
+// così le card delle categorie (surface) ne escono in rilievo e ogni artista si distingue a colpo d'occhio
+.tov-artist {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px 20px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+
+  @media (max-width: 768px) {
+    gap: 12px;
+    padding: 14px 12px 16px;
+  }
+}
+
+// Trattino in accento sopra il nome, come nelle NavCard: segna l'inizio del blocco dell'artista
+.tov-artist-rule {
+  display: block;
+  width: 22px;
+  height: 2px;
+  margin-bottom: -4px;
+  background: var(--color-accent);
+}
+
+.tov-artist-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.tov-artist-identity {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.tov-artist-name {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 18px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.tov-artist-role {
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.tov-artist-open {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-accent);
+  font-size: 14px;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.tov-list-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+// Intestazione "Spare" / "Consumabili": separa senza far dubitare a quale lista appartiene un elemento
+.tov-list-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-divider);
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+
+  &__icon {
+    color: var(--color-accent);
+    font-size: 14px;
+  }
+}

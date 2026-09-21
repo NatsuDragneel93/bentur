@@ -14,6 +14,12 @@
   margin: 0 0 18px;
 }
 
+.cl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .cl-categories {
   display: flex;
   flex-direction: column;
@@ -216,6 +222,14 @@
   align-self: flex-start;
   gap: 8px;
   margin-top: 4px;
+  min-height: 36px;
+  padding-inline: 8px;
+}
+
+// Aggiunta di una categoria dentro una lista annidata (pagine Tour)
+.cl-add-category {
+  align-self: flex-start;
+  gap: 8px;
   min-height: 36px;
   padding-inline: 8px;
 }

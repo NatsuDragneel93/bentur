@@ -114,7 +114,17 @@ const en: typeof it = {
   },
   toDoTour: {
     title: 'To Do - Tour',
-    inProgress: 'Tour To Do section coming soon...',
+    subtitle: 'What the artists of your tours have to do',
+  },
+  // Shared by the To Do - Tour and Inventory - Tour pages
+  tourLists: {
+    search: 'Search tour or artist...',
+    openArtist: 'Open',
+    openArtistLabel: 'Open {{name}}',
+    noTours: 'You are not part of any tour yet.',
+    goToTours: 'Go to Tours',
+    noArtists: 'No artists in this tour',
+    artistsError: 'Error loading the artists',
   },
   toBuy: {
     title: 'To Buy',
@@ -133,6 +143,9 @@ const en: typeof it = {
   },
   inventoryTour: {
     title: 'Inventory - Tour',
+    subtitle: 'Spare and consumables of the artists of your tours',
+    spare: 'Spare',
+    consumables: 'Consumables',
   },
   manuals: {
     title: 'Manuals',

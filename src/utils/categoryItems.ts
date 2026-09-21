@@ -67,15 +67,16 @@ export type CategoryProgress =
   | { status: 'partial'; done: number; total: number }
   | { status: 'done' };
 
-// Avanzamento di una categoria con spunte: nessuna spunta, alcune, tutte
-export const categoryProgress = <TItem extends ListItem>(
-  items: TItem[],
-  isCompleted: (item: TItem) => boolean
-): CategoryProgress => {
-  const total = items.length;
-  const done = items.filter(isCompleted).length;
+// Avanzamento a partire dai conteggi: nessuna spunta, alcune, tutte
+export const progressOf = (done: number, total: number): CategoryProgress => {
   if (total === 0) return { status: 'empty' };
   if (done === 0) return { status: 'open', count: total };
   if (done === total) return { status: 'done' };
   return { status: 'partial', done, total };
 };
+
+// Avanzamento di una categoria con spunte
+export const categoryProgress = <TItem extends ListItem>(
+  items: TItem[],
+  isCompleted: (item: TItem) => boolean
+): CategoryProgress => progressOf(items.filter(isCompleted).length, items.length);
